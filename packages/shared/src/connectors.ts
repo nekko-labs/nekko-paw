@@ -1,0 +1,40 @@
+/** External connector types: Linear, Slack, Discord, Gmail, Google Drive. */
+
+export type ConnectorKind = 'linear' | 'slack' | 'discord' | 'gmail' | 'gdrive';
+
+export type ConnectorAuthKind = 'token' | 'oauth';
+
+export interface ConnectorMeta {
+  kind: ConnectorKind;
+  label: string;
+  auth: ConnectorAuthKind;
+  /** Short description shown in the Connectors UI. */
+  description: string;
+}
+
+export interface ConnectorConfig {
+  kind: ConnectorKind;
+  connected: boolean;
+  /** Token-based connectors store a token; oauth stores tokens elsewhere. */
+  token?: string;
+  /** Free-form per-connector settings (workspace id, channel, etc.). */
+  settings?: Record<string, string>;
+  connectedAt?: number;
+}
+
+export interface ConnectorResource {
+  id: string;
+  title: string;
+  subtitle?: string;
+  url?: string;
+  /** Body that can be pulled into context. */
+  body?: string;
+}
+
+export const CONNECTOR_CATALOG: ConnectorMeta[] = [
+  { kind: 'linear', label: 'Linear', auth: 'token', description: 'Issues, projects, and cycles via Linear API key.' },
+  { kind: 'slack', label: 'Slack', auth: 'token', description: 'Channels and messages via a bot/user token.' },
+  { kind: 'discord', label: 'Discord', auth: 'token', description: 'Servers and channels via a bot token.' },
+  { kind: 'gmail', label: 'Gmail', auth: 'oauth', description: 'Threads and messages via Google OAuth.' },
+  { kind: 'gdrive', label: 'Google Drive', auth: 'oauth', description: 'Docs and files via Google OAuth.' },
+];

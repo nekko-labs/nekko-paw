@@ -1,0 +1,29 @@
+{
+  "name": "nekko-paw",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local-first AI coding & cowork desktop app with first-class local model support.",
+  "license": "MIT",
+  "author": "ermish",
+  "workspaces": [
+    "packages/shared",
+    "packages/core",
+    "apps/desktop"
+  ],
+  "scripts": {
+    "build": "npm run build -w @nekko/shared && npm run build -w @nekko/core && npm run build -w @nekko/desktop",
+    "build:core": "npm run build -w @nekko/shared && npm run build -w @nekko/core",
+    "dev": "npm run dev -w @nekko/desktop",
+    "test": "npm run test -w @nekko/core",
+    "typecheck": "npm run typecheck -w @nekko/shared && npm run typecheck -w @nekko/core && npm run typecheck -w @nekko/desktop",
+    "dist": "npm run build && npm run dist -w @nekko/desktop"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}

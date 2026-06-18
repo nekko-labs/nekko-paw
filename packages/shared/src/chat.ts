@@ -1,0 +1,57 @@
+/** Chat / agent conversation types. */
+
+export type Role = 'system' | 'user' | 'assistant' | 'tool';
+
+export interface ToolCall {
+  id: string;
+  name: string;
+  input: Record<string, unknown>;
+}
+
+export interface ToolResult {
+  toolCallId: string;
+  /** Text or JSON-serializable output shown back to the model. */
+  output: string;
+  isError?: boolean;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: Role;
+  content: string;
+  /** Tool calls requested by the assistant in this message. */
+  toolCalls?: ToolCall[];
+  /** Tool results (for role === 'tool'). */
+  toolResult?: ToolResult;
+  createdAt: number;
+}
+
+export interface Session {
+  id: string;
+  title: string;
+  workspaceId?: string;
+  providerId?: string;
+  modelId?: string;
+  messages: ChatMessage[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Streaming events emitted by the agent loop. */
+export type AgentEvent =
+  | { type: 'text'; sessionId: string; delta: string }
+  | { type: 'tool_call'; sessionId: string; call: ToolCall }
+  | { type: 'tool_approval_required'; sessionId: string; call: ToolCall; reason: string; severity: 'low' | 'medium' | 'high' }
+  | { type: 'tool_result'; sessionId: string; result: ToolResult }
+  | { type: 'usage'; sessionId: string; inputTokens: number; outputTokens: number }
+  | { type: 'done'; sessionId: string; messageId: string }
+  | { type: 'error'; sessionId: string; message: string };
+
+export interface SendOptions {
+  sessionId: string;
+  providerId: string;
+  modelId: string;
+  text: string;
+  /** File paths the user explicitly attached as context. */
+  attachedPaths?: string[];
+}
