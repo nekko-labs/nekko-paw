@@ -1,5 +1,6 @@
 import { app, BrowserWindow, shell } from 'electron';
 import { join } from 'path';
+import { createHost } from '@nekko/host';
 import { registerIpc } from './ipc.js';
 import { loadWindowBounds, saveWindowBounds } from './windowState.js';
 
@@ -48,7 +49,8 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
-  registerIpc();
+  const host = createHost({ dataDir: join(app.getPath('userData'), 'nekko') });
+  registerIpc(host);
   createWindow();
 
   app.on('activate', () => {

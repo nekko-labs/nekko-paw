@@ -1,187 +1,97 @@
 import { BrowserWindow, dialog, ipcMain } from 'electron';
-import { basename } from 'path';
 import type {
   AppSettings,
-  ConnectorConfig,
   ConnectorKind,
-  GuardrailRule,
   MemoryEntry,
   MemoryScope,
   ProviderConfig,
   SendOptions,
-  WorkspaceFolder,
 } from '@nekko/shared';
 import { IpcChannels, IpcEvents } from '@nekko/shared';
-import {
-  classifyCommand,
-  createProvider,
-  discoverLocalProviders,
-  getConnector,
-  OllamaProvider,
-} from '@nekko/core';
-import { getSettings, saveSettings } from './store.js';
-import { listSessions, getSession, createSession, deleteSession, setSessionWorkspace } from './sessions.js';
-import { sendChat, abortChat, resolveApproval, previewContext, setContextPrefs } from './chat.js';
-import { listMemory, saveMemory, deleteMemory } from './memory.js';
-import { indexWorkspace, getIndexStatus, searchWorkspace, listIndexedFiles } from './workspace.js';
-import { usageSummary } from './usage.js';
+import type { Host } from '@nekko/host';
 
 function broadcast(channel: string, payload: unknown): void {
   for (const win of BrowserWindow.getAllWindows()) win.webContents.send(channel, payload);
 }
 
-export function registerIpc(): void {
+/**
+ * Thin Electron transport over the shared Host: each IPC channel maps directly
+ * to a host method, and host events are forwarded to every renderer. All the
+ * real logic lives in @nekko/host (shared with the web/cloud editions).
+ */
+export function registerIpc(host: Host): void {
   const h = ipcMain.handle.bind(ipcMain);
 
+  // Forward host events to all renderers.
+  host.events.on('agentEvent', (e) => broadcast(IpcEvents.agentEvent, e));
+  host.events.on('indexProgress', (s) => broadcast(IpcEvents.indexProgress, s));
+
   // Settings
-  h(IpcChannels.settingsGet, () => getSettings());
-  h(IpcChannels.settingsUpdate, (_e, patch: Partial<AppSettings>) => saveSettings(patch));
+  h(IpcChannels.settingsGet, () => host.getSettings());
+  h(IpcChannels.settingsUpdate, (_e, patch: Partial<AppSettings>) => host.updateSettings(patch));
 
   // Providers
-  h(IpcChannels.providersList, () => getSettings().providers);
-  h(IpcChannels.providersSave, (_e, p: ProviderConfig) => {
-    const providers = getSettings().providers.filter((x) => x.id !== p.id);
-    providers.push(p);
-    return saveSettings({ providers }).providers;
-  });
-  h(IpcChannels.providersRemove, (_e, id: string) => {
-    const providers = getSettings().providers.filter((x) => x.id !== id);
-    return saveSettings({ providers }).providers;
-  });
-  h(IpcChannels.providersDiscover, async () => {
-    const discovered = await discoverLocalProviders();
-    const existing = getSettings().providers;
-    const merged = [...existing];
-    for (const d of discovered) if (!merged.some((p) => p.baseUrl === d.baseUrl)) merged.push(d);
-    return saveSettings({ providers: merged }).providers;
-  });
-  h(IpcChannels.providersTest, async (_e, id: string) => {
-    const p = getSettings().providers.find((x) => x.id === id);
-    if (!p) return { ok: false, message: 'Not found' };
-    return createProvider(p).test();
-  });
+  h(IpcChannels.providersList, () => host.listProviders());
+  h(IpcChannels.providersSave, (_e, p: ProviderConfig) => host.saveProvider(p));
+  h(IpcChannels.providersRemove, (_e, id: string) => host.removeProvider(id));
+  h(IpcChannels.providersDiscover, () => host.discoverProviders());
+  h(IpcChannels.providersTest, (_e, id: string) => host.testProvider(id));
 
   // Models
-  h(IpcChannels.modelsList, async (_e, providerId: string) => {
-    const p = getSettings().providers.find((x) => x.id === providerId);
-    if (!p) return [];
-    try {
-      return await createProvider(p).listModels();
-    } catch {
-      return [];
-    }
-  });
-  h(IpcChannels.modelPull, async (_e, providerId: string, model: string) => {
-    const p = getSettings().providers.find((x) => x.id === providerId);
-    if (!p || p.kind !== 'ollama') return { ok: false, message: 'Pull supported on Ollama only.' };
-    try {
-      await new OllamaProvider(p).pull(model);
-      return { ok: true, message: `Pulled ${model}` };
-    } catch (e) {
-      return { ok: false, message: (e as Error).message };
-    }
-  });
-  h(IpcChannels.modelLoad, async (_e, providerId: string, model: string) => {
-    const p = getSettings().providers.find((x) => x.id === providerId);
-    if (p?.kind === 'ollama') await new OllamaProvider(p).setLoaded(model, true);
-    return { ok: true };
-  });
-  h(IpcChannels.modelUnload, async (_e, providerId: string, model: string) => {
-    const p = getSettings().providers.find((x) => x.id === providerId);
-    if (p?.kind === 'ollama') await new OllamaProvider(p).setLoaded(model, false);
-    return { ok: true };
-  });
+  h(IpcChannels.modelsList, (_e, providerId: string) => host.listModels(providerId));
+  h(IpcChannels.modelPull, (_e, providerId: string, model: string) => host.pullModel(providerId, model));
+  h(IpcChannels.modelLoad, (_e, providerId: string, model: string) => host.loadModel(providerId, model));
+  h(IpcChannels.modelUnload, (_e, providerId: string, model: string) => host.unloadModel(providerId, model));
 
   // Sessions + chat
-  h(IpcChannels.sessionsList, () => listSessions());
-  h(IpcChannels.sessionCreate, (_e, workspaceId?: string) => createSession(workspaceId));
-  h(IpcChannels.sessionGet, (_e, id: string) => getSession(id));
-  h(IpcChannels.sessionDelete, (_e, id: string) => deleteSession(id));
-  h(IpcChannels.sessionSetWorkspace, (_e, id: string, workspaceId?: string) => setSessionWorkspace(id, workspaceId));
-  h(IpcChannels.chatSend, async (_e, opts: SendOptions) => {
-    await sendChat(opts, (event) => broadcast(IpcEvents.agentEvent, event));
-  });
-  h(IpcChannels.chatAbort, (_e, sessionId: string) => abortChat(sessionId));
-  h(IpcChannels.toolApprove, (_e, _sessionId: string, toolCallId: string, approved: boolean) =>
-    resolveApproval(toolCallId, approved),
+  h(IpcChannels.sessionsList, () => host.listSessions());
+  h(IpcChannels.sessionCreate, (_e, workspaceId?: string) => host.createSession(workspaceId));
+  h(IpcChannels.sessionGet, (_e, id: string) => host.getSession(id));
+  h(IpcChannels.sessionDelete, (_e, id: string) => host.deleteSession(id));
+  h(IpcChannels.sessionSetWorkspace, (_e, id: string, workspaceId?: string) => host.setSessionWorkspace(id, workspaceId));
+  h(IpcChannels.chatSend, (_e, opts: SendOptions) => host.sendChat(opts));
+  h(IpcChannels.chatAbort, (_e, sessionId: string) => host.abortChat(sessionId));
+  h(IpcChannels.toolApprove, (_e, sessionId: string, toolCallId: string, approved: boolean) =>
+    host.approveTool(sessionId, toolCallId, approved),
   );
 
   // Context
   h(IpcChannels.contextPreview, (_e, sessionId: string, attachedPaths: string[]) =>
-    previewContext(sessionId, attachedPaths),
+    host.previewContext(sessionId, attachedPaths),
   );
-  h(IpcChannels.contextToggle, (_e, sessionId: string, _itemId: string, _included: boolean, _pinned: boolean) =>
-    // Toggles are tracked client-side for the preview; re-preview to reflect.
-    previewContext(sessionId, []),
-  );
+  h(IpcChannels.contextToggle, (_e, sessionId: string) => host.previewContext(sessionId, []));
   h(IpcChannels.contextSetPrefs, (_e, sessionId: string, prefs: { excluded: string[]; pinned: string[] }) =>
-    setContextPrefs(sessionId, prefs),
+    host.setContextPrefs(sessionId, prefs),
   );
 
   // Memory
-  h(IpcChannels.memoryList, (_e, scope: MemoryScope, workspaceId?: string) => listMemory(scope, workspaceId));
-  h(IpcChannels.memorySave, (_e, entry: MemoryEntry) => {
-    saveMemory(entry);
-    return listMemory(entry.scope, entry.workspaceId);
-  });
-  h(IpcChannels.memoryDelete, (_e, id: string) => deleteMemory(id));
+  h(IpcChannels.memoryList, (_e, scope: MemoryScope, workspaceId?: string) => host.listMemory(scope, workspaceId));
+  h(IpcChannels.memorySave, (_e, entry: MemoryEntry) => host.saveMemory(entry));
+  h(IpcChannels.memoryDelete, (_e, id: string) => host.deleteMemory(id));
 
   // Workspace
-  h(IpcChannels.workspaceList, () => getSettings().workspaces);
+  h(IpcChannels.workspaceList, () => host.listWorkspaces());
   h(IpcChannels.workspaceAdd, async () => {
     const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
     const res = await dialog.showOpenDialog(win!, { properties: ['openDirectory'] });
-    if (res.canceled || !res.filePaths[0]) return getSettings().workspaces;
-    const path = res.filePaths[0];
-    const folder: WorkspaceFolder = {
-      id: `ws_${Date.now().toString(36)}`,
-      name: basename(path),
-      path,
-      addedAt: Date.now(),
-    };
-    const workspaces = [...getSettings().workspaces, folder];
-    saveSettings({ workspaces });
-    // Kick off indexing in the background.
-    setTimeout(() => indexWorkspace(folder, (s) => broadcast(IpcEvents.indexProgress, s)), 50);
-    return workspaces;
+    if (res.canceled || !res.filePaths[0]) return host.listWorkspaces();
+    return host.addWorkspaceByPath(res.filePaths[0]);
   });
-  h(IpcChannels.workspaceRemove, (_e, id: string) => {
-    const workspaces = getSettings().workspaces.filter((w) => w.id !== id);
-    return saveSettings({ workspaces }).workspaces;
-  });
-  h(IpcChannels.workspaceIndex, (_e, id: string) => {
-    const folder = getSettings().workspaces.find((w) => w.id === id);
-    if (!folder) throw new Error('Workspace not found');
-    return indexWorkspace(folder, (s) => broadcast(IpcEvents.indexProgress, s));
-  });
-  h(IpcChannels.workspaceIndexStatus, (_e, id: string) => getIndexStatus(id));
-  h(IpcChannels.workspaceSearch, (_e, id: string, query: string) => {
-    const folder = getSettings().workspaces.find((w) => w.id === id);
-    return folder ? searchWorkspace(folder, query) : [];
-  });
-  h(IpcChannels.workspaceFiles, (_e, id: string) => listIndexedFiles(id));
+  h(IpcChannels.workspaceRemove, (_e, id: string) => host.removeWorkspace(id));
+  h(IpcChannels.workspaceIndex, (_e, id: string) => host.indexWorkspace(id));
+  h(IpcChannels.workspaceIndexStatus, (_e, id: string) => host.getIndexStatus(id));
+  h(IpcChannels.workspaceSearch, (_e, id: string, query: string) => host.searchWorkspace(id, query));
+  h(IpcChannels.workspaceFiles, (_e, id: string) => host.listFiles(id));
 
   // Connectors
-  h(IpcChannels.connectorsList, () => getSettings().connectors);
-  h(IpcChannels.connectorConnect, (_e, kind: ConnectorKind, token: string, settings?: Record<string, string>) => {
-    const connectors = getSettings().connectors.filter((c) => c.kind !== kind);
-    const cfg: ConnectorConfig = { kind, connected: true, token, settings, connectedAt: Date.now() };
-    connectors.push(cfg);
-    return saveSettings({ connectors }).connectors;
-  });
-  h(IpcChannels.connectorDisconnect, (_e, kind: ConnectorKind) => {
-    const connectors = getSettings().connectors.filter((c) => c.kind !== kind);
-    return saveSettings({ connectors }).connectors;
-  });
-  h(IpcChannels.connectorFetch, async (_e, kind: ConnectorKind, query?: string) => {
-    const cfg = getSettings().connectors.find((c) => c.kind === kind);
-    if (!cfg?.connected || !cfg.token) throw new Error('Connector not connected');
-    return getConnector(kind).fetch(cfg.token, query, cfg.settings);
-  });
+  h(IpcChannels.connectorsList, () => host.listConnectors());
+  h(IpcChannels.connectorConnect, (_e, kind: ConnectorKind, token: string, settings?: Record<string, string>) =>
+    host.connectConnector(kind, token, settings),
+  );
+  h(IpcChannels.connectorDisconnect, (_e, kind: ConnectorKind) => host.disconnectConnector(kind));
+  h(IpcChannels.connectorFetch, (_e, kind: ConnectorKind, query?: string) => host.fetchConnector(kind, query));
 
-  // Guardrails
-  h(IpcChannels.guardrailsClassify, (_e, command: string) => classifyCommand(command, getSettings().guardrails));
-
-  // Usage
-  h(IpcChannels.usageSummary, () => usageSummary());
+  // Guardrails + usage
+  h(IpcChannels.guardrailsClassify, (_e, command: string) => host.classifyCommand(command));
+  h(IpcChannels.usageSummary, () => host.usageSummary());
 }

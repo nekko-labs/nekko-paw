@@ -1,14 +1,10 @@
-import { app } from 'electron';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import type { AppSettings } from '@nekko/shared';
 import { DEFAULT_GUARDRAILS } from '@nekko/core';
+import { dataDir } from './paths.js';
 
-export function dataDir(): string {
-  const dir = join(app.getPath('userData'), 'nekko');
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  return dir;
-}
+export { dataDir } from './paths.js';
 
 const SETTINGS_PATH = () => join(dataDir(), 'settings.json');
 

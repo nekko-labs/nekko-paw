@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@nekko/core": "*",
+    "@nekko/host": "*",
     "@nekko/shared": "*"
   },
   "devDependencies": {

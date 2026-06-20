@@ -8,14 +8,15 @@
   "workspaces": [
     "packages/shared",
     "packages/core",
+    "packages/host",
     "apps/desktop"
   ],
   "scripts": {
-    "build": "npm run build -w @nekko/shared && npm run build -w @nekko/core && npm run build -w @nekko/desktop",
+    "build": "npm run build:core && npm run build -w @nekko/host && npm run build -w @nekko/desktop",
     "build:core": "npm run build -w @nekko/shared && npm run build -w @nekko/core",
     "dev": "npm run dev -w @nekko/desktop",
     "test": "npm run test -w @nekko/core",
-    "typecheck": "npm run typecheck -w @nekko/shared && npm run typecheck -w @nekko/core && npm run typecheck -w @nekko/desktop",
+    "typecheck": "npm run typecheck -w @nekko/shared && npm run typecheck -w @nekko/core && npm run typecheck -w @nekko/host && npm run typecheck -w @nekko/desktop",
     "dist": "npm run build && npm run dist -w @nekko/desktop"
   },
   "engines": {
