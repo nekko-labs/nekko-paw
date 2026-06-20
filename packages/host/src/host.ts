@@ -34,6 +34,7 @@ import * as memory from './memory.js';
 import { usageSummary } from './usage.js';
 import { indexWorkspace, getIndexStatus, searchWorkspace, listIndexedFiles } from './workspace.js';
 import { sendChat, abortChat, resolveApproval, previewContext, setContextPrefs } from './chat.js';
+import { buildSpec, specPathForSession } from './spec.js';
 import { connectRelayAgent, type RelayAgentHandle } from './relay.js';
 import { randomUUID } from 'crypto';
 
@@ -70,12 +71,17 @@ export interface Host {
   getSession(id: string): Session | null;
   deleteSession(id: string): void;
   setSessionWorkspace(id: string, workspaceId?: string): Session | null;
+  setSessionAttachments(id: string, paths: string[]): Session | null;
   sendChat(opts: SendOptions): Promise<void>;
   abortChat(sessionId: string): void;
   approveTool(sessionId: string, toolCallId: string, approved: boolean): void;
 
   previewContext(sessionId: string, attachedPaths: string[]): Promise<ContextBundle>;
   setContextPrefs(sessionId: string, prefs: { excluded: string[]; pinned: string[] }): void;
+
+  buildSpec(sessionId: string): Promise<{ ok: boolean; path?: string; message?: string }>;
+  setSpecLinked(sessionId: string, linked: boolean): Session | null;
+  specPath(sessionId: string): string | null;
 
   listMemory(scope: MemoryScope, workspaceId?: string): MemoryEntry[];
   saveMemory(entry: MemoryEntry): MemoryEntry[];
@@ -175,6 +181,10 @@ export function createHost(opts: { dataDir: string }): Host {
     getSession: sessions.getSession,
     deleteSession: sessions.deleteSession,
     setSessionWorkspace: sessions.setSessionWorkspace,
+    setSessionAttachments: sessions.setSessionAttachments,
+    buildSpec,
+    setSpecLinked: sessions.setSpecLinked,
+    specPath: specPathForSession,
     sendChat: (o) => sendChat(o, (e) => events.emit('agentEvent', e)),
     abortChat,
     approveTool: (_sessionId, toolCallId, approved) => resolveApproval(toolCallId, approved),

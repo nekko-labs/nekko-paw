@@ -37,6 +37,14 @@ export const IpcChannels = {
   contextPreview: 'context:preview',
   contextToggle: 'context:toggle',
   contextSetPrefs: 'context:setPrefs',
+  sessionSetAttachments: 'session:setAttachments',
+  specBuild: 'spec:build',
+  specSetLinked: 'spec:setLinked',
+  specPath: 'spec:path',
+
+  // Transport-local (handled by Electron main / web-client, not the host dispatcher)
+  dialogOpenFiles: 'dialog:openFiles',
+  openPath: 'shell:openPath',
 
   memoryList: 'memory:list',
   memorySave: 'memory:save',
@@ -94,6 +102,7 @@ export interface NekkoApi {
   getSession(id: string): Promise<Session | null>;
   deleteSession(id: string): Promise<void>;
   setSessionWorkspace(sessionId: string, workspaceId?: string): Promise<Session | null>;
+  setSessionAttachments(sessionId: string, paths: string[]): Promise<Session | null>;
   sendChat(opts: SendOptions): Promise<void>;
   abortChat(sessionId: string): Promise<void>;
   approveTool(sessionId: string, toolCallId: string, approved: boolean): Promise<void>;
@@ -101,6 +110,16 @@ export interface NekkoApi {
   previewContext(sessionId: string, attachedPaths: string[]): Promise<ContextBundle>;
   toggleContextItem(sessionId: string, itemId: string, included: boolean, pinned: boolean): Promise<ContextBundle>;
   setContextPrefs(sessionId: string, prefs: import('./chat.js').ContextPrefs): Promise<void>;
+
+  /** Build/refresh a spec.md in the chat's workspace from the conversation. */
+  buildSpec(sessionId: string): Promise<{ ok: boolean; path?: string; message?: string }>;
+  setSpecLinked(sessionId: string, linked: boolean): Promise<Session | null>;
+  specPath(sessionId: string): Promise<string | null>;
+
+  /** Open a native file picker (desktop) → chosen paths; browser → prompt. */
+  openFilesDialog(): Promise<string[]>;
+  /** Reveal/open a path with the OS (desktop) or a URL (web). */
+  openPath(path: string): Promise<void>;
 
   listMemory(scope: MemoryScope, workspaceId?: string): Promise<MemoryEntry[]>;
   saveMemory(entry: MemoryEntry): Promise<MemoryEntry[]>;

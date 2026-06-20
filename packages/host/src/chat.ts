@@ -17,6 +17,7 @@ import { executeTool } from './tools.js';
 import { recordUsage } from './usage.js';
 import { listMemory } from './memory.js';
 import { searchWorkspace } from './workspace.js';
+import { buildSpec } from './spec.js';
 
 /**
  * Retrieve code snippets from the session's workspace index relevant to the
@@ -132,7 +133,7 @@ async function collectConnectorSnippets(
 export async function previewContext(sessionId: string, attachedPaths: string[]): Promise<ContextBundle> {
   const session = getSession(sessionId);
   return assembleContext({
-    attached: collectAttached(attachedPaths),
+    attached: collectAttached([...(session?.attachedPaths ?? []), ...attachedPaths]),
     guidelines: collectGuidelines(),
     memory: [
       ...listMemory('global'),
@@ -169,7 +170,7 @@ export async function sendChat(opts: SendOptions, send: Sender): Promise<void> {
 
   // Build context with provenance.
   const bundle = assembleContext({
-    attached: collectAttached(opts.attachedPaths ?? []),
+    attached: collectAttached([...(session.attachedPaths ?? []), ...(opts.attachedPaths ?? [])]),
     guidelines: collectGuidelines(),
     memory: [
       ...listMemory('global'),
@@ -248,5 +249,10 @@ export async function sendChat(opts: SendOptions, send: Sender): Promise<void> {
   } finally {
     abortControllers.delete(opts.sessionId);
     saveSession(session);
+  }
+
+  // Keep the linked spec.md in sync with the conversation (best-effort).
+  if (session.specLinked) {
+    buildSpec(opts.sessionId).catch(() => {});
   }
 }

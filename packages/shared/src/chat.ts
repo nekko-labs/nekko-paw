@@ -41,6 +41,10 @@ export interface Session {
   modelId?: string;
   messages: ChatMessage[];
   contextPrefs?: ContextPrefs;
+  /** Files explicitly attached to this chat's context (absolute paths). */
+  attachedPaths?: string[];
+  /** When set, the chat keeps a spec.md in the workspace updated each turn. */
+  specLinked?: boolean;
   createdAt: number;
   updatedAt: number;
 }

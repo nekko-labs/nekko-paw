@@ -35,6 +35,7 @@ const api: NekkoApi = {
   getSession: (id) => inv(IpcChannels.sessionGet, id),
   deleteSession: (id) => inv(IpcChannels.sessionDelete, id),
   setSessionWorkspace: (sessionId, workspaceId) => inv(IpcChannels.sessionSetWorkspace, sessionId, workspaceId),
+  setSessionAttachments: (sessionId, paths) => inv(IpcChannels.sessionSetAttachments, sessionId, paths),
   sendChat: (opts: SendOptions) => inv(IpcChannels.chatSend, opts),
   abortChat: (sessionId) => inv(IpcChannels.chatAbort, sessionId),
   approveTool: (sessionId, toolCallId, approved) => inv(IpcChannels.toolApprove, sessionId, toolCallId, approved),
@@ -43,6 +44,13 @@ const api: NekkoApi = {
   toggleContextItem: (sessionId, itemId, included, pinned) =>
     inv(IpcChannels.contextToggle, sessionId, itemId, included, pinned),
   setContextPrefs: (sessionId, prefs) => inv(IpcChannels.contextSetPrefs, sessionId, prefs),
+
+  buildSpec: (sessionId) => inv(IpcChannels.specBuild, sessionId),
+  setSpecLinked: (sessionId, linked) => inv(IpcChannels.specSetLinked, sessionId, linked),
+  specPath: (sessionId) => inv(IpcChannels.specPath, sessionId),
+
+  openFilesDialog: () => inv(IpcChannels.dialogOpenFiles),
+  openPath: (path) => inv(IpcChannels.openPath, path),
 
   listMemory: (scope: MemoryScope, workspaceId) => inv(IpcChannels.memoryList, scope, workspaceId),
   saveMemory: (entry: MemoryEntry) => inv(IpcChannels.memorySave, entry),

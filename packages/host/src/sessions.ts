@@ -51,6 +51,22 @@ export function setSessionWorkspace(id: string, workspaceId?: string): Session |
   return s;
 }
 
+export function setSessionAttachments(id: string, paths: string[]): Session | null {
+  const s = getSession(id);
+  if (!s) return null;
+  s.attachedPaths = paths;
+  saveSession(s);
+  return s;
+}
+
+export function setSpecLinked(id: string, linked: boolean): Session | null {
+  const s = getSession(id);
+  if (!s) return null;
+  s.specLinked = linked;
+  saveSession(s);
+  return s;
+}
+
 export function createSession(workspaceId?: string): Session {
   const now = Date.now();
   const s: Session = {

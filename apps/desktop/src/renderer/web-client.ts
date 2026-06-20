@@ -148,6 +148,7 @@ function makeWebClient(): NekkoApi {
     getSession: (id) => call(IpcChannels.sessionGet, id),
     deleteSession: (id) => call(IpcChannels.sessionDelete, id),
     setSessionWorkspace: (sessionId, workspaceId) => call(IpcChannels.sessionSetWorkspace, sessionId, workspaceId),
+    setSessionAttachments: (sessionId, paths) => call(IpcChannels.sessionSetAttachments, sessionId, paths),
     sendChat: (opts) => call(IpcChannels.chatSend, opts),
     abortChat: (sessionId) => call(IpcChannels.chatAbort, sessionId),
     approveTool: (sessionId, toolCallId, approved) => call(IpcChannels.toolApprove, sessionId, toolCallId, approved),
@@ -156,6 +157,19 @@ function makeWebClient(): NekkoApi {
     toggleContextItem: (sessionId, itemId, included, pinned) =>
       call(IpcChannels.contextToggle, sessionId, itemId, included, pinned),
     setContextPrefs: (sessionId, prefs) => call(IpcChannels.contextSetPrefs, sessionId, prefs),
+
+    buildSpec: (sessionId) => call(IpcChannels.specBuild, sessionId),
+    setSpecLinked: (sessionId, linked) => call(IpcChannels.specSetLinked, sessionId, linked),
+    specPath: (sessionId) => call(IpcChannels.specPath, sessionId),
+
+    // No native picker in the browser — ask for server-side path(s).
+    openFilesDialog: async () => {
+      const p = window.prompt('File path(s) on the server to attach (comma-separated):');
+      return p ? p.split(',').map((s) => s.trim()).filter(Boolean) : [];
+    },
+    openPath: async (target) => {
+      window.open(/^https?:\/\//i.test(target) ? target : `file://${target}`, '_blank');
+    },
 
     listMemory: (scope, workspaceId) => call(IpcChannels.memoryList, scope, workspaceId),
     saveMemory: (entry) => call(IpcChannels.memorySave, entry),
