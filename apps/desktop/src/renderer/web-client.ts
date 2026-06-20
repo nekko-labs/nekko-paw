@@ -14,40 +14,106 @@ function makeWebClient(): NekkoApi {
   if (urlToken) sessionStorage.setItem('nekko_token', urlToken);
   const token = () => sessionStorage.getItem('nekko_token') ?? '';
 
-  const call = async (channel: string, ...args: unknown[]): Promise<any> => {
-    const res = await fetch(`/api/${channel}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token() ? { Authorization: `Bearer ${token()}` } : {}),
-      },
-      body: JSON.stringify({ args }),
-    });
-    if (!res.ok) throw new Error(`${channel}: HTTP ${res.status}`);
-    const text = await res.text();
-    return text ? JSON.parse(text) : null;
-  };
-
-  // Event stream.
   const agentCbs = new Set<(e: AgentEvent) => void>();
   const indexCbs = new Set<(s: IndexStatus) => void>();
-  let ws: WebSocket | null = null;
-  const connect = () => {
-    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    const q = token() ? `?token=${encodeURIComponent(token())}` : '';
-    ws = new WebSocket(`${proto}://${location.host}/api/events${q}`);
-    ws.onmessage = (ev) => {
-      try {
-        const { channel, payload } = JSON.parse(ev.data);
-        if (channel === IpcEvents.agentEvent) agentCbs.forEach((cb) => cb(payload));
-        else if (channel === IpcEvents.indexProgress) indexCbs.forEach((cb) => cb(payload));
-      } catch {
-        /* ignore malformed frames */
-      }
-    };
-    ws.onclose = () => setTimeout(connect, 1000); // auto-reconnect
+  const dispatchEvent = (channel: string, payload: any) => {
+    if (channel === IpcEvents.agentEvent) agentCbs.forEach((cb) => cb(payload));
+    else if (channel === IpcEvents.indexProgress) indexCbs.forEach((cb) => cb(payload));
   };
-  connect();
+
+  // Relay transport: when the page is opened with ?relay=&room=&key=, talk to a
+  // paired local agent through the relay instead of a same-origin server. This
+  // is how a phone (or Nekko Cloud) drives your local model.
+  const p = new URLSearchParams(location.search);
+  const relayUrl = p.get('relay');
+  const room = p.get('room');
+  const key = p.get('key');
+  let call: (channel: string, ...args: unknown[]) => Promise<any>;
+
+  if (relayUrl && room && key) {
+    const pending = new Map<number, { resolve: (v: any) => void; reject: (e: any) => void }>();
+    let nextId = 1;
+    let relay: WebSocket | null = null;
+    const connect = () => {
+      relay = new WebSocket(`${relayUrl.replace(/\/$/, '')}/relay?role=client&room=${encodeURIComponent(room)}&key=${encodeURIComponent(key)}`);
+      relay.onmessage = (ev) => {
+        let f: any;
+        try {
+          f = JSON.parse(ev.data);
+        } catch {
+          return;
+        }
+        if (f.type === 'res' && pending.has(f.id)) {
+          const { resolve, reject } = pending.get(f.id)!;
+          pending.delete(f.id);
+          f.error ? reject(new Error(f.error)) : resolve(f.result);
+        } else if (f.type === 'event') {
+          dispatchEvent(f.channel, f.payload);
+        }
+      };
+      relay.onclose = () => setTimeout(connect, 1000);
+    };
+    connect();
+    const ready = () =>
+      new Promise<void>((res, rej) => {
+        if (relay && relay.readyState === WebSocket.OPEN) return res();
+        const t = setInterval(() => {
+          if (relay && relay.readyState === WebSocket.OPEN) {
+            clearInterval(t);
+            res();
+          }
+        }, 50);
+        setTimeout(() => {
+          clearInterval(t);
+          rej(new Error('relay not connected'));
+        }, 10000);
+      });
+    call = async (channel, ...args) => {
+      await ready();
+      return new Promise((resolve, reject) => {
+        const id = nextId++;
+        pending.set(id, { resolve, reject });
+        relay!.send(JSON.stringify({ type: 'req', id, channel, args }));
+        setTimeout(() => {
+          if (pending.has(id)) {
+            pending.delete(id);
+            reject(new Error(`${channel}: timed out`));
+          }
+        }, 120000);
+      });
+    };
+  } else {
+    // HTTP transport (same-origin web server).
+    call = async (channel, ...args) => {
+      const res = await fetch(`/api/${channel}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token() ? { Authorization: `Bearer ${token()}` } : {}),
+        },
+        body: JSON.stringify({ args }),
+      });
+      if (!res.ok) throw new Error(`${channel}: HTTP ${res.status}`);
+      const text = await res.text();
+      return text ? JSON.parse(text) : null;
+    };
+    let ws: WebSocket | null = null;
+    const connect = () => {
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      const q = token() ? `?token=${encodeURIComponent(token())}` : '';
+      ws = new WebSocket(`${proto}://${location.host}/api/events${q}`);
+      ws.onmessage = (ev) => {
+        try {
+          const { channel, payload } = JSON.parse(ev.data);
+          dispatchEvent(channel, payload);
+        } catch {
+          /* ignore malformed frames */
+        }
+      };
+      ws.onclose = () => setTimeout(connect, 1000); // auto-reconnect
+    };
+    connect();
+  }
 
   return {
     getSettings: () => call(IpcChannels.settingsGet),
