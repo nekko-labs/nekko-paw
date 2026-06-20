@@ -4,6 +4,7 @@
   "private": true,
   "description": "Nekko Paw desktop app.",
   "author": "ermish",
+  "homepage": "https://github.com/nekko-labs/nekko-paw",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",

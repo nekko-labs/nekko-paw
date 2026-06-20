@@ -2,6 +2,9 @@ node_modules/
 dist/
 out/
 build/
+# but keep the desktop app's icon resources (electron-builder buildResources)
+!apps/desktop/build/
+!apps/desktop/build/**
 *.log
 .DS_Store
 .env
