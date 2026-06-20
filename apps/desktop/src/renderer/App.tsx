@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useStore, type View } from './store.js';
+import { useT } from './i18n.js';
 import { Mascot } from './components/Mascot.js';
 import { Toasts } from './components/Toasts.js';
 import { CommandPalette } from './components/CommandPalette.js';
@@ -21,18 +22,19 @@ import {
   GridIcon,
 } from './icons.js';
 
-const NAV: Array<{ view: View; label: string; Icon: (p: { className?: string }) => JSX.Element }> = [
-  { view: 'command', label: 'Command Center', Icon: GridIcon },
-  { view: 'chat', label: 'Chat', Icon: ChatIcon },
-  { view: 'projects', label: 'Projects', Icon: FolderIcon },
-  { view: 'models', label: 'Models', Icon: ServerIcon },
-  { view: 'connectors', label: 'Connectors', Icon: PlugIcon },
-  { view: 'memory', label: 'Memory', Icon: BrainIcon },
-  { view: 'settings', label: 'Settings', Icon: GearIcon },
+const NAV: Array<{ view: View; labelKey: string; Icon: (p: { className?: string }) => JSX.Element }> = [
+  { view: 'command', labelKey: 'nav.command', Icon: GridIcon },
+  { view: 'chat', labelKey: 'nav.chat', Icon: ChatIcon },
+  { view: 'projects', labelKey: 'nav.projects', Icon: FolderIcon },
+  { view: 'models', labelKey: 'nav.models', Icon: ServerIcon },
+  { view: 'connectors', labelKey: 'nav.connectors', Icon: PlugIcon },
+  { view: 'memory', labelKey: 'nav.memory', Icon: BrainIcon },
+  { view: 'settings', labelKey: 'nav.settings', Icon: GearIcon },
 ];
 
 export function App() {
   const { view, setView, mascotMood, settings, providers, refreshSettings, refreshProviders, refreshSessions } = useStore();
+  const t = useT();
 
   useEffect(() => {
     refreshSettings();
@@ -71,11 +73,11 @@ export function App() {
         <div className="mb-3 grid h-9 w-9 place-items-center rounded-xl" style={{ background: 'var(--accent)' }}>
           <span className="text-lg">🐾</span>
         </div>
-        {NAV.map(({ view: v, label, Icon }) => (
+        {NAV.map(({ view: v, labelKey, Icon }) => (
           <button
             key={v}
             className={`nav-item ${view === v ? 'active' : ''}`}
-            title={label}
+            title={t(labelKey)}
             onClick={() => setView(v)}
           >
             <Icon />

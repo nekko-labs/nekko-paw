@@ -3,6 +3,7 @@ import type { AppInfo, AppSettings, ChatMode, GuardrailRule, GuardrailAction, Sa
 import { useStore } from '../store.js';
 import { ShieldIcon, SunIcon } from '../icons.js';
 import { RemoteAccess } from '../components/RemoteAccess.js';
+import { useT, LANGUAGES } from '../i18n.js';
 
 const SANDBOX_OPTS: Array<{ value: SandboxMode; label: string; desc: string }> = [
   { value: 'workspace-jail', label: 'Workspace jail', desc: 'File access is confined to your added folders.' },
@@ -21,6 +22,7 @@ const CHAT_MODES: Array<{ value: ChatMode; label: string; desc: string }> = [
 
 export function SettingsView() {
   const { applyTheme } = useStore();
+  const tr = useT();
   const [settings, setSettings] = useState<AppSettings | null>(null);
 
   useEffect(() => { window.nekko.getSettings().then(setSettings); }, []);
@@ -43,26 +45,42 @@ export function SettingsView() {
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto max-w-3xl px-8 py-8">
-        <h1 className="text-2xl font-semibold">Settings</h1>
+        <h1 className="text-2xl font-semibold">{tr('settings.title')}</h1>
 
         {/* Appearance */}
         <section className="card mt-6 p-5">
-          <div className="flex items-center gap-2"><SunIcon className="h-4 w-4" /><h2 className="font-semibold">Appearance</h2></div>
+          <div className="flex items-center gap-2"><SunIcon className="h-4 w-4" /><h2 className="font-semibold">{tr('settings.appearance')}</h2></div>
           <div className="mt-4 flex items-center justify-between">
-            <span className="text-[13px]">Theme</span>
+            <span className="text-[13px]">{tr('settings.theme')}</span>
             <div className="flex rounded-xl p-1" style={{ background: 'var(--surface-2)' }}>
-              {(['light', 'dark', 'system'] as ThemeMode[]).map((t) => (
-                <button key={t} onClick={() => update({ theme: t })} className={`rounded-lg px-3 py-1.5 text-[12px] font-medium ${settings.theme === t ? 'bg-surface' : 'text-ink-faint'}`}>{t}</button>
+              {(['light', 'dark', 'system'] as ThemeMode[]).map((tm) => (
+                <button key={tm} onClick={() => update({ theme: tm })} className={`rounded-lg px-3 py-1.5 text-[12px] font-medium ${settings.theme === tm ? 'bg-surface' : 'text-ink-faint'}`}>{tr('theme.' + tm)}</button>
               ))}
             </div>
           </div>
           <div className="mt-2 flex min-h-[40px] items-center justify-between">
-            <span className="text-[13px]">Accent color</span>
+            <span className="text-[13px]">{tr('settings.accent')}</span>
             <input type="color" value={settings.accent} onChange={(e) => update({ accent: e.target.value })} className="h-7 w-12 rounded-lg" />
           </div>
           <div className="flex min-h-[40px] items-center justify-between">
-            <span className="text-[13px]">Show Nekko mascot</span>
+            <span className="text-[13px]">{tr('settings.mascot')}</span>
             <Toggle on={settings.mascotEnabled} onChange={(v) => update({ mascotEnabled: v })} />
+          </div>
+          <div className="mt-2 flex min-h-[40px] items-center justify-between gap-3">
+            <div className="min-w-0">
+              <span className="text-[13px]">{tr('settings.language')}</span>
+              <p className="text-[11px] text-ink-faint">{tr('settings.languageHint')}</p>
+            </div>
+            <select
+              className="input max-w-[180px] py-1.5"
+              value={settings.language ?? ''}
+              onChange={(e) => update({ language: e.target.value || undefined })}
+            >
+              <option value="">{tr('settings.systemDefault')}</option>
+              {LANGUAGES.map((l) => (
+                <option key={l.code} value={l.code}>{l.label}</option>
+              ))}
+            </select>
           </div>
         </section>
 
@@ -71,7 +89,7 @@ export function SettingsView() {
 
         {/* Sandbox */}
         <section className="card mt-5 p-5">
-          <div className="flex items-center gap-2"><ShieldIcon className="h-4 w-4" /><h2 className="font-semibold">Sandbox</h2></div>
+          <div className="flex items-center gap-2"><ShieldIcon className="h-4 w-4" /><h2 className="font-semibold">{tr('settings.sandbox')}</h2></div>
           <p className="mt-1 text-[12px] text-ink-faint">How Nekko is allowed to touch your machine.</p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             {SANDBOX_OPTS.map((o) => (
@@ -85,7 +103,7 @@ export function SettingsView() {
 
         {/* Chat modes */}
         <section className="card mt-5 p-5">
-          <div className="flex items-center gap-2"><ShieldIcon className="h-4 w-4" /><h2 className="font-semibold">Chat modes</h2></div>
+          <div className="flex items-center gap-2"><ShieldIcon className="h-4 w-4" /><h2 className="font-semibold">{tr('settings.chatModes')}</h2></div>
           <p className="mt-1 text-[12px] text-ink-faint">
             How chats run tools. Pick the default for new chats — each chat can override it from the composer.
           </p>
