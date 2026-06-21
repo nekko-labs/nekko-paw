@@ -15,7 +15,7 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npm run build -w @open-paw/desktop
+      - run: npm run build
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -49,7 +49,7 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npm run build -w @open-paw/desktop
+      - run: npm run build
       - name: Build iOS (simulator, unsigned)
         working-directory: apps/mobile
         run: |
