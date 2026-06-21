@@ -1,8 +1,19 @@
 import { createHash } from 'node:crypto';
 import Fastify from 'fastify';
 import websocket from '@fastify/websocket';
+import { createPushSender } from './push.js';
 
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
+
+/** Parse a relay control frame (plain JSON with a known `type`); else null. */
+export function controlFrame(s: string): { type: string; [k: string]: any } | null {
+  try {
+    const o = JSON.parse(s);
+    return o && typeof o.type === 'string' ? o : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Nekko relay — the piece that lets a remote client (e.g. your phone, or Nekko
@@ -26,17 +37,21 @@ interface Room {
   clients: Set<any>;
   /** sha256 of the pairing key, claimed by the agent; clients must match. */
   keyHash: string | null;
+  /** Push tokens registered by clients, for notifying when they're offline. */
+  pushTokens: Map<string, 'ios' | 'android'>;
 }
 
 const rooms = new Map<string, Room>();
 const room = (code: string): Room => {
   let r = rooms.get(code);
   if (!r) {
-    r = { agent: null, clients: new Set(), keyHash: null };
+    r = { agent: null, clients: new Set(), keyHash: null, pushTokens: new Map() };
     rooms.set(code, r);
   }
   return r;
 };
+
+const pushSender = createPushSender();
 
 const PORT = Number(process.env.OPENPAW_RELAY_PORT ?? 4400);
 const HOST = process.env.OPENPAW_RELAY_HOST ?? '0.0.0.0';
@@ -68,9 +83,19 @@ async function main() {
       if (r.agent) r.agent.close(1000, 'replaced by a newer agent');
       r.agent = socket;
       for (const c of r.clients) safeSend(c, { type: 'agent-online' });
-      // Agent → clients: forward responses + events verbatim.
+      // Agent → clients: forward responses + events verbatim, except the plain
+      // `notify` control frame → push to registered phones if they're offline.
       socket.on('message', (data: Buffer) => {
-        for (const c of r.clients) c.send(data.toString());
+        const s = data.toString();
+        const ctrl = controlFrame(s);
+        if (ctrl?.type === 'notify') {
+          if (r.clients.size === 0 && r.pushTokens.size > 0) {
+            const payload = { title: String(ctrl.title || 'Open Paw'), body: String(ctrl.body || 'Your task finished.') };
+            for (const [token, platform] of r.pushTokens) void pushSender.send(token, platform, payload);
+          }
+          return;
+        }
+        for (const c of r.clients) c.send(s);
       });
       socket.on('close', () => {
         if (r.agent === socket) r.agent = null;
@@ -91,9 +116,18 @@ async function main() {
       }
       r.clients.add(socket);
       safeSend(socket, { type: r.agent ? 'agent-online' : 'agent-offline' });
-      // Client → agent: forward requests.
+      // Client → agent: forward requests, except the plain `register-push`
+      // control frame → store the phone's push token for this room.
       socket.on('message', (data: Buffer) => {
-        if (r.agent) r.agent.send(data.toString());
+        const s = data.toString();
+        const ctrl = controlFrame(s);
+        if (ctrl?.type === 'register-push') {
+          if (typeof ctrl.token === 'string' && ctrl.token) {
+            r.pushTokens.set(ctrl.token, ctrl.platform === 'android' ? 'android' : 'ios');
+          }
+          return;
+        }
+        if (r.agent) r.agent.send(s);
         else safeSend(socket, { type: 'agent-offline' });
       });
       socket.on('close', () => {
@@ -106,7 +140,8 @@ async function main() {
   app.get('/healthz', async () => ({ ok: true, rooms: rooms.size }));
 
   await app.listen({ port: PORT, host: HOST });
-  console.log(`\n🐾 Nekko relay listening on ws://${HOST}:${PORT}/relay\n`);
+  console.log(`\n🐾 Nekko relay listening on ws://${HOST}:${PORT}/relay`);
+  console.log(`   push: ${pushSender.enabled ? 'APNs configured' : 'disabled (set APNS_KEY_P8/APNS_KEY_ID/APNS_TEAM_ID)'}\n`);
 }
 
 function safeSend(socket: any, obj: unknown) {

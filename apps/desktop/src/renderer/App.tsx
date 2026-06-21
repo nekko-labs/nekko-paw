@@ -92,6 +92,29 @@ export function App() {
     return () => off?.();
   }, []);
 
+  // Native (mobile) only: register for remote push and hand the token to the
+  // relay, so a finished run can notify the phone even when it's offline.
+  useEffect(() => {
+    const cap = (window as { Capacitor?: { isNativePlatform?: () => boolean; getPlatform?: () => string } }).Capacitor;
+    if (!cap?.isNativePlatform?.()) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { PushNotifications } = await import('@capacitor/push-notifications');
+        const platform = cap.getPlatform?.() === 'android' ? 'android' : 'ios';
+        const perm = await PushNotifications.requestPermissions();
+        if (perm.receive !== 'granted') return;
+        await PushNotifications.addListener('registration', (t) => {
+          if (!cancelled) window.nekko.registerPushToken(t.value, platform).catch(() => {});
+        });
+        await PushNotifications.register();
+      } catch {
+        /* push not configured in this build */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   return (
     <div className="flex h-full w-full" style={{ background: 'var(--paper)' }}>
       {/* Left rail */}

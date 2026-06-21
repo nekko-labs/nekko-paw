@@ -17,6 +17,7 @@
     "@capacitor/core": "^6.1.2",
     "@capacitor/local-notifications": "^6.1.0",
     "@capacitor/preferences": "^6.0.3",
+    "@capacitor/push-notifications": "^6.0.5",
     "@capacitor/status-bar": "^6.0.2"
   },
   "devDependencies": {

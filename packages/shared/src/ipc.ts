@@ -182,6 +182,8 @@ export interface NekkoApi {
   getAppInfo(): Promise<AppInfo>;
   /** Connect configured MCP servers and return their status + tools. */
   getMcpStatus(): Promise<import('./mcp.js').McpServerStatus[]>;
+  /** Register this device's push token with the relay (mobile/relay only; no-op elsewhere). */
+  registerPushToken(token: string, platform: 'ios' | 'android'): Promise<void>;
   /** Check for a newer version (desktop: GitHub feed; web: server version). */
   checkForUpdates(): Promise<UpdateInfo>;
   /** Download the available update (desktop only; web resolves immediately). */

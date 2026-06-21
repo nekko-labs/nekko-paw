@@ -95,6 +95,7 @@ const api: NekkoApi = {
 
   getAppInfo: () => inv(IpcChannels.appInfo),
   getMcpStatus: () => inv(IpcChannels.mcpStatus),
+  registerPushToken: () => Promise.resolve(), // desktop isn't a relay client
   checkForUpdates: () => inv(IpcChannels.updateCheck),
   downloadUpdate: () => inv(IpcChannels.updateDownload),
   quitAndInstall: () => inv(IpcChannels.updateInstall),

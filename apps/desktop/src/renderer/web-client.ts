@@ -45,6 +45,8 @@ function makeWebClient(): NekkoApi {
     }
   }
   let call: (channel: string, ...args: unknown[]) => Promise<any>;
+  // Send the phone's push token to the relay (relay transport only).
+  let registerPush: (token: string, platform: string) => Promise<void> = async () => {};
 
   if (relayUrl && room && key) {
     const pending = new Map<number, { resolve: (v: any) => void; reject: (e: any) => void }>();
@@ -110,6 +112,10 @@ function makeWebClient(): NekkoApi {
           }
         }, 120000);
       });
+    };
+    registerPush = async (token, platform) => {
+      await ready();
+      relay!.send(JSON.stringify({ type: 'register-push', token, platform }));
     };
   } else {
     // HTTP transport (same-origin web server).
@@ -235,6 +241,7 @@ function makeWebClient(): NekkoApi {
     // loaded; we just suggest a refresh (no installer to run in the browser).
     getAppInfo: () => call(IpcChannels.appInfo) as Promise<AppInfo>,
     getMcpStatus: () => call(IpcChannels.mcpStatus),
+    registerPushToken: (token, platform) => registerPush(token, platform),
     checkForUpdates: async () => {
       const info = (await call(IpcChannels.appInfo)) as AppInfo;
       if (loadVersion === null) loadVersion = info.version;

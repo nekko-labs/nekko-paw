@@ -34,7 +34,18 @@ export function connectRelayAgent(
     }
   };
 
-  const onAgent = (e: unknown) => sendSealed({ type: 'event', channel: IpcEvents.agentEvent, payload: e });
+  const onAgent = (e: unknown) => {
+    sendSealed({ type: 'event', channel: IpcEvents.agentEvent, payload: e });
+    // On run completion, ping the relay (plain, content-free control frame) so it
+    // can push a notification to a paired phone that's currently offline.
+    if ((e as { type?: string })?.type === 'done') {
+      try {
+        ws?.send(JSON.stringify({ type: 'notify', title: 'Nekko finished', body: 'Your task is ready.' }));
+      } catch {
+        /* closing */
+      }
+    }
+  };
   const onIndex = (s: unknown) => sendSealed({ type: 'event', channel: IpcEvents.indexProgress, payload: s });
   host.events.on('agentEvent', onAgent);
   host.events.on('indexProgress', onIndex);
