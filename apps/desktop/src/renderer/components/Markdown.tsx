@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 /**
  * Minimal, dependency-free markdown renderer covering the constructs chat
@@ -14,16 +14,7 @@ export function Markdown({ text }: { text: string }) {
       const nl = part.indexOf('\n');
       const lang = nl > 0 ? part.slice(0, nl).trim() : '';
       const code = nl > 0 ? part.slice(nl + 1) : part;
-      blocks.push(
-        <pre
-          key={`code-${i}`}
-          className="my-2 overflow-x-auto rounded-xl border border-line p-3 font-mono text-[12.5px] leading-relaxed"
-          style={{ background: 'var(--surface-2)' }}
-        >
-          {lang && <div className="mb-1 text-[10px] uppercase tracking-wide text-ink-faint">{lang}</div>}
-          <code>{code.replace(/\n$/, '')}</code>
-        </pre>,
-      );
+      blocks.push(<CodeBlock key={`code-${i}`} lang={lang} code={code.replace(/\n$/, '')} />);
     } else {
       part.split('\n\n').forEach((para, j) => {
         if (!para.trim()) return;
@@ -33,6 +24,35 @@ export function Markdown({ text }: { text: string }) {
   });
 
   return <div className="space-y-1 text-[14px] leading-relaxed">{blocks}</div>;
+}
+
+function CodeBlock({ lang, code }: { lang: string; code: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard?.writeText(code).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    });
+  };
+  return (
+    <div className="group relative my-2">
+      <pre
+        className="overflow-x-auto rounded-xl border border-line p-3 font-mono text-[12.5px] leading-relaxed"
+        style={{ background: 'var(--surface-2)' }}
+      >
+        {lang && <div className="mb-1 text-[10px] uppercase tracking-wide text-ink-faint">{lang}</div>}
+        <code>{code}</code>
+      </pre>
+      <button
+        onClick={copy}
+        title="Copy code"
+        className="absolute right-2 top-2 rounded-md border border-line px-1.5 py-0.5 text-[10px] text-ink-faint opacity-0 transition-opacity hover:text-ink group-hover:opacity-100"
+        style={{ background: 'var(--surface)' }}
+      >
+        {copied ? '✓ copied' : 'Copy'}
+      </button>
+    </div>
+  );
 }
 
 function renderParagraph(para: string): React.ReactNode {
