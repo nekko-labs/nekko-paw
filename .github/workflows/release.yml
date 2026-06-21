@@ -28,3 +28,6 @@ jobs:
       - run: npm run release -w @open-paw/desktop
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # No Apple Developer cert: skip electron-builder's signing discovery
+          # (the afterPack hook ad-hoc signs the macOS app instead).
+          CSC_IDENTITY_AUTO_DISCOVERY: false

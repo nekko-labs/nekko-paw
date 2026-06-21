@@ -34,6 +34,20 @@ biscuits while the model thinks.
 
 > A full picture-by-picture tour is in the **[walkthrough guide](docs/WALKTHROUGH.md)**.
 
+## Download
+
+Grab the installer for your OS from the [latest release](https://github.com/nekko-labs/open-paw/releases/latest): Windows `.msi`/`.exe`, macOS `.dmg`, Linux `.AppImage`/`.deb`.
+
+### macOS: "Open Paw is damaged and can't be opened" 🛑
+
+Open Paw isn't notarized yet (no Apple Developer certificate), so macOS quarantines the downloaded app and may say it's *damaged* or move it to the Trash. The app is fine — this is Gatekeeper blocking an unsigned download. After dragging **Open Paw** to Applications, clear the quarantine flag once:
+
+```bash
+xattr -cr "/Applications/Open Paw.app"
+```
+
+Then open it normally. (Alternatively: right-click the app → **Open** → **Open**.) We'll drop this step once notarized builds are signed. Windows may also show a SmartScreen "unknown publisher" prompt — choose **More info → Run anyway**.
+
 ## Why Open Paw
 
 **LM Studio runs models. Open Paw runs *with your work*.** Local model UIs are

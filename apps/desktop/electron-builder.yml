@@ -1,6 +1,7 @@
 appId: dev.nekkolabs.openpaw
 productName: Open Paw
 copyright: Copyright © 2026 Nekko Labs
+afterPack: scripts/after-pack.cjs
 directories:
   output: release
   buildResources: build
@@ -34,6 +35,10 @@ mac:
     - zip
   category: public.app-category.developer-tools
   artifactName: ${productName}-${version}-${arch}.${ext}
+  # No Apple Developer ID yet → can't notarize. Ad-hoc signing happens in the
+  # afterPack hook so the (unsigned) app still launches on Apple Silicon.
+  hardenedRuntime: false
+  gatekeeperAssess: false
 linux:
   target:
     - AppImage
