@@ -23,34 +23,43 @@ function defaults(): AppSettings {
   };
 }
 
-let cache: AppSettings | null = null;
+// Keyed by data dir so a single process serving many accounts (Nekko Cloud)
+// never bleeds one account's settings into another. Single-data-dir editions
+// (desktop/server/CLI) just use the one entry.
+const cache = new Map<string, AppSettings>();
 
 export function getSettings(): AppSettings {
-  if (cache) return cache;
+  const dir = dataDir();
+  const cached = cache.get(dir);
+  if (cached) return cached;
+  let settings: AppSettings;
   try {
     if (existsSync(SETTINGS_PATH())) {
       const parsed = JSON.parse(readFileSync(SETTINGS_PATH(), 'utf8'));
-      cache = { ...defaults(), ...parsed };
+      settings = { ...defaults(), ...parsed };
       // Ensure guardrails exist even if an old settings file lacked them.
-      if (!cache!.guardrails?.length) cache!.guardrails = DEFAULT_GUARDRAILS;
-      return cache!;
+      if (!settings.guardrails?.length) settings.guardrails = DEFAULT_GUARDRAILS;
+    } else {
+      settings = defaults();
     }
   } catch {
-    /* fall through to defaults */
+    settings = defaults();
   }
-  cache = defaults();
-  return cache;
+  cache.set(dir, settings);
+  return settings;
 }
 
 export function saveSettings(patch: Partial<AppSettings>): AppSettings {
-  cache = { ...getSettings(), ...patch };
-  writeFileSync(SETTINGS_PATH(), JSON.stringify(cache, null, 2), 'utf8');
-  return cache;
+  const next = { ...getSettings(), ...patch };
+  cache.set(dataDir(), next);
+  writeFileSync(SETTINGS_PATH(), JSON.stringify(next, null, 2), 'utf8');
+  return next;
 }
 
 /** Reset all settings (theme, providers, guardrails, prompts, …) to defaults. */
 export function resetSettings(): AppSettings {
-  cache = defaults();
-  writeFileSync(SETTINGS_PATH(), JSON.stringify(cache, null, 2), 'utf8');
-  return cache;
+  const next = defaults();
+  cache.set(dataDir(), next);
+  writeFileSync(SETTINGS_PATH(), JSON.stringify(next, null, 2), 'utf8');
+  return next;
 }

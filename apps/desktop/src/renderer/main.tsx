@@ -2,21 +2,40 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App.js';
 import { ensureNekko } from './web-client.js';
+import { CloudLogin, cloudAuthRequired } from './components/CloudLogin.js';
 import './styles.css';
 
-// In Electron the preload bridge already defined window.nekko; in the web/Docker
-// editions this installs the HTTP/WS client. Either way the UI below is identical.
-ensureNekko();
-
-// Register the service worker for the web/PWA editions (not Electron's file://).
-if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
-  });
+function registerServiceWorker() {
+  // Web/PWA editions only (not Electron's file://).
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    });
+  }
 }
 
-createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-);
+function startApp(root: ReturnType<typeof createRoot>) {
+  // In Electron the preload bridge already defined window.nekko; in the
+  // web/Docker/Cloud editions this installs the HTTP/WS client (Cloud sends the
+  // signed-in account's Bearer token). Either way the UI below is identical.
+  ensureNekko();
+  registerServiceWorker();
+  root.render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>,
+  );
+}
+
+async function boot() {
+  const root = createRoot(document.getElementById('root')!);
+  // Only the hosted (Nekko Cloud) edition gates on sign-in; everything else
+  // mounts straight away.
+  if (await cloudAuthRequired()) {
+    root.render(<CloudLogin onAuthed={() => startApp(root)} />);
+  } else {
+    startApp(root);
+  }
+}
+
+void boot();
