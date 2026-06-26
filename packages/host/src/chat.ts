@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import type { AgentEvent, ChatMessage, ContextBundle, SendOptions, ToolCall } from '@open-paw/shared';
-import { EFFORT_TEMPERATURE } from '@open-paw/shared';
+import { EFFORT_TEMPERATURE, DEFAULT_ORCHESTRATION, getStrategy, orchestrationPromptHint } from '@open-paw/shared';
 import {
   createProvider,
   runAgent,
@@ -167,9 +167,6 @@ function sessionDepth(sessionId: string): number {
   return depth;
 }
 
-/** Maximum sub-agent nesting (a root agent may spawn children, they may spawn one more). */
-const MAX_AGENT_DEPTH = 2;
-
 /**
  * Run a delegated sub-task as a fresh child session and return its final answer.
  * The child streams its own agent events (under its own sessionId) so the
@@ -184,7 +181,8 @@ async function runSubAgent(
   task: string,
   send: Sender,
 ): Promise<string> {
-  if (sessionDepth(parentId) >= MAX_AGENT_DEPTH) {
+  const maxDepth = getSettings().orchestration?.maxDepth ?? DEFAULT_ORCHESTRATION.maxDepth;
+  if (sessionDepth(parentId) >= maxDepth) {
     return 'Sub-agent depth limit reached — handle this part of the task directly instead of delegating further.';
   }
   if (!task.trim()) return 'No task was provided to the sub-agent.';
@@ -221,10 +219,14 @@ export async function sendChat(opts: SendOptions, send: Sender): Promise<void> {
   const incognito = !!session.incognito;
   // Offline disables tool calls entirely; otherwise combine builtins + connected
   // MCP tools, then drop any the user turned off for this chat.
+  // Orchestration: the strategy decides whether sub-agents are even offered.
+  const orchestration = settings.orchestration ?? DEFAULT_ORCHESTRATION;
+  const allowSpawn = getStrategy(orchestration.strategy).allowsSpawn;
   let tools: typeof BUILTIN_TOOLS = [];
   if (!offline) {
     if (settings.mcpServers?.some((s) => s.enabled)) await syncMcp(settings.mcpServers);
     const disabled = new Set(session.disabledTools ?? []);
+    if (!allowSpawn) disabled.add('spawn_agent');
     tools = [...BUILTIN_TOOLS, ...mcpToolSpecs()].filter((t) => !disabled.has(t.name));
   }
   // Persist only when not incognito.
@@ -251,6 +253,7 @@ export async function sendChat(opts: SendOptions, send: Sender): Promise<void> {
     workspaces: settings.workspaces,
     contextBlock,
     platform: process.platform,
+    orchestrationHint: allowSpawn ? orchestrationPromptHint(orchestration) : '',
   });
 
   if (opts.regenerate) {

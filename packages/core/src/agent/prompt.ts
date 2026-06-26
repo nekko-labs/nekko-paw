@@ -4,6 +4,8 @@ export interface PromptContext {
   workspaces: WorkspaceFolder[];
   contextBlock: string;
   platform: string;
+  /** Sub-agent orchestration guidance for this turn (empty = no delegation). */
+  orchestrationHint?: string;
 }
 
 /**
@@ -28,7 +30,7 @@ prompt the user for approval, so explain what a command does when it is non-obvi
 - Cite file paths as you reference them.
 
 Platform: ${ctx.platform}
-
+${ctx.orchestrationHint ? `\nDelegation:\n${ctx.orchestrationHint}\n` : ''}
 Workspace folders:
 ${folders}
 ${ctx.contextBlock ? `\nAdditional context provided for this turn:\n\n${ctx.contextBlock}` : ''}`;

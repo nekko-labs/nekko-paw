@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import type { AppInfo, AppSettings, ChatMode, GuardrailRule, GuardrailAction, McpServerStatus, SandboxMode, ThemeMode, UpdateInfo } from '@open-paw/shared';
 import { useStore } from '../store.js';
-import { SPEC_METHODOLOGIES } from '@open-paw/shared';
-import { ShieldIcon, SunIcon, TrashIcon } from '../icons.js';
+import { SPEC_METHODOLOGIES, ORCHESTRATION_STRATEGIES, DEFAULT_ORCHESTRATION } from '@open-paw/shared';
+import { ShieldIcon, SunIcon, TrashIcon, RobotIcon } from '../icons.js';
 import { RemoteAccess } from '../components/RemoteAccess.js';
 import { useT, LANGUAGES } from '../i18n.js';
 
@@ -140,8 +140,57 @@ export function SettingsView() {
           </div>
         </section>
 
-        {/* Slash commands / prompt library */}
-        <PromptsSection settings={settings} update={update} />
+        {/* Agent orchestration */}
+        <section className="card mt-5 p-5">
+          <div className="flex items-center gap-2"><RobotIcon className="h-4 w-4" /><h2 className="font-semibold">Agent orchestration</h2></div>
+          <p className="mt-1 text-[12px] text-ink-faint">
+            How agents delegate to sub-agents. Shapes the system prompt and whether the <code className="text-[11px]">spawn_agent</code> tool is offered.
+          </p>
+          <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3">
+            {ORCHESTRATION_STRATEGIES.map((st) => {
+              const cur = settings.orchestration ?? DEFAULT_ORCHESTRATION;
+              const active = cur.strategy === st.id;
+              return (
+                <button
+                  key={st.id}
+                  onClick={() => update({ orchestration: { ...cur, strategy: st.id } })}
+                  className={`card p-3 text-left ${active ? 'border-accent' : ''}`}
+                >
+                  <div className="text-[13px] font-medium">{st.label}</div>
+                  <div className="mt-0.5 text-[11px] text-ink-faint">{st.description}</div>
+                </button>
+              );
+            })}
+          </div>
+          {(settings.orchestration ?? DEFAULT_ORCHESTRATION).strategy !== 'solo' && (
+            <div className="mt-3 flex flex-wrap gap-4">
+              {([
+                { key: 'maxDepth', label: 'Max nesting depth', min: 1, max: 4 },
+                { key: 'maxParallel', label: 'Parallel sub-agents (advisory)', min: 1, max: 12 },
+              ] as const).map((f) => {
+                const cur = settings.orchestration ?? DEFAULT_ORCHESTRATION;
+                return (
+                  <label key={f.key} className="flex items-center gap-2 text-[12px]">
+                    <span className="text-ink-faint">{f.label}</span>
+                    <input
+                      type="number"
+                      min={f.min}
+                      max={f.max}
+                      value={cur[f.key]}
+                      onChange={(e) => {
+                        const n = Math.max(f.min, Math.min(f.max, Number(e.target.value) || f.min));
+                        update({ orchestration: { ...cur, [f.key]: n } });
+                      }}
+                      className="input w-16 text-[12px]"
+                    />
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        {/* Spec-driven development */}
 
         {/* MCP servers */}
         <McpSection settings={settings} update={update} />

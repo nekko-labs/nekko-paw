@@ -18,3 +18,4 @@ export * from './remote.js';
 export * from './update.js';
 export * from './mcp.js';
 export * from './spec.js';
+export * from './orchestration.js';

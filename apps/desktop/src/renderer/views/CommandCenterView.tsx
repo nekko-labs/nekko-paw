@@ -148,7 +148,7 @@ export function CommandCenterView() {
                 key={s.id}
                 session={s}
                 provider={providers.find((p) => p.id === s.providerId)}
-                subAgents={childrenOf.get(s.id) ?? []}
+                childrenOf={childrenOf}
                 running={running}
                 isRunning={isRunning}
                 tokens={usage?.bySession[s.id]}
@@ -225,15 +225,58 @@ function relTime(ms: number): string {
   return `${Math.round(h / 24)}d ago`;
 }
 
-function AgentCard({
-  session, provider, subAgents, running, isRunning, tokens, now, onOpen,
+/** Count every descendant sub-agent under a session (the whole subtree). */
+function countDescendants(id: string, childrenOf: Map<string, Session[]>): number {
+  const kids = childrenOf.get(id) ?? [];
+  return kids.reduce((n, k) => n + 1 + countDescendants(k.id, childrenOf), 0);
+}
+
+/** Recursive sub-agent tree — the swarm under one agent, nested by parentage. */
+function SubAgentTree({
+  parentId, childrenOf, running, onOpen, depth = 0,
 }: {
-  session: Session; provider?: ProviderConfig; subAgents: Session[]; running: Set<string>;
+  parentId: string; childrenOf: Map<string, Session[]>; running: Set<string>;
+  onOpen: (id: string) => void; depth?: number;
+}) {
+  const kids = childrenOf.get(parentId) ?? [];
+  if (kids.length === 0) return null;
+  return (
+    <div className={depth > 0 ? 'ml-3 border-l border-line pl-2' : 'space-y-0.5'}>
+      {kids.map((k) => {
+        const live = running.has(k.id);
+        const grandkids = countDescendants(k.id, childrenOf);
+        return (
+          <div key={k.id}>
+            <button
+              className="flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-[12px] hover:bg-surface-2"
+              onClick={() => onOpen(k.id)}
+            >
+              <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${live ? 'animate-pulse bg-accent' : 'bg-ink-faint'}`} />
+              <span className="min-w-0 flex-1 truncate text-ink-soft">{k.title}</span>
+              {grandkids > 0 && <span className="shrink-0 text-[10px] text-ink-faint">{grandkids}↳</span>}
+              {live && <span className="shrink-0 text-[10px] text-accent">live</span>}
+            </button>
+            <SubAgentTree parentId={k.id} childrenOf={childrenOf} running={running} onOpen={onOpen} depth={depth + 1} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function AgentCard({
+  session, provider, childrenOf, running, isRunning, tokens, now, onOpen,
+}: {
+  session: Session; provider?: ProviderConfig; childrenOf: Map<string, Session[]>; running: Set<string>;
   isRunning: boolean; tokens?: { input: number; output: number }; now: number; onOpen: (id: string) => void;
 }) {
   const msgs = session.messages.filter((m) => m.role === 'user' || m.role === 'assistant');
   const lastAssistant = [...session.messages].reverse().find((m) => m.role === 'assistant' && m.content.trim());
   const tok = tokens ? tokens.input + tokens.output : 0;
+  const swarmSize = countDescendants(session.id, childrenOf);
+  const liveSwarm = (function tally(id): number {
+    return (childrenOf.get(id) ?? []).reduce((n, k) => n + (running.has(k.id) ? 1 : 0) + tally(k.id), 0);
+  })(session.id);
   return (
     <div className={`card overflow-hidden p-4 ${isRunning ? 'border-accent' : ''}`} style={isRunning ? { boxShadow: '0 0 0 1px var(--accent)' } : undefined}>
       <div className="flex items-start justify-between gap-2">
@@ -257,19 +300,13 @@ function AgentCard({
         <p className="mt-2 line-clamp-2 text-[12px] text-ink-soft">{lastAssistant.content.slice(0, 180)}</p>
       )}
 
-      {subAgents.length > 0 && (
+      {swarmSize > 0 && (
         <div className="mt-2.5 border-t border-line pt-2">
           <div className="mb-1 flex items-center gap-1.5 text-[10.5px] uppercase tracking-wide text-ink-faint">
-            <RobotIcon className="h-3.5 w-3.5" /> {subAgents.length} sub-agent{subAgents.length === 1 ? '' : 's'}
+            <RobotIcon className="h-3.5 w-3.5" /> swarm · {swarmSize} agent{swarmSize === 1 ? '' : 's'}
+            {liveSwarm > 0 && <span className="text-accent">· {liveSwarm} live</span>}
           </div>
-          <div className="space-y-1">
-            {subAgents.slice(0, 4).map((k) => (
-              <button key={k.id} className="flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-[12px] hover:bg-surface-2" onClick={() => onOpen(k.id)}>
-                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${running.has(k.id) ? 'animate-pulse bg-accent' : 'bg-ink-faint'}`} />
-                <span className="min-w-0 flex-1 truncate text-ink-soft">{k.title}</span>
-              </button>
-            ))}
-          </div>
+          <SubAgentTree parentId={session.id} childrenOf={childrenOf} running={running} onOpen={onOpen} />
         </div>
       )}
 

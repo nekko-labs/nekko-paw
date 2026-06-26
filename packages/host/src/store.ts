@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import type { AppSettings } from '@open-paw/shared';
-import { DEFAULT_PROMPTS, DEFAULT_SPEC_METHODOLOGY } from '@open-paw/shared';
+import { DEFAULT_PROMPTS, DEFAULT_SPEC_METHODOLOGY, DEFAULT_ORCHESTRATION } from '@open-paw/shared';
 import { DEFAULT_GUARDRAILS } from '@open-paw/core';
 import { dataDir } from './paths.js';
 
@@ -21,6 +21,7 @@ function defaults(): AppSettings {
     mascotEnabled: true,
     prompts: DEFAULT_PROMPTS,
     specMethodology: DEFAULT_SPEC_METHODOLOGY,
+    orchestration: DEFAULT_ORCHESTRATION,
   };
 }
 

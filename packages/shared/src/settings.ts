@@ -62,6 +62,8 @@ export interface AppSettings {
   mcpServers?: import('./mcp.js').McpServerConfig[];
   /** Default spec-driven methodology id for new chats (see SPEC_METHODOLOGIES). */
   specMethodology?: string;
+  /** Sub-agent orchestration strategy + bounds. */
+  orchestration?: import('./orchestration.js').OrchestrationSettings;
 }
 
 /** One usage event appended to a JSONL log for analytics. */
