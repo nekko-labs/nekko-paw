@@ -18,7 +18,7 @@
   "scripts": {
     "build": "npm run build:core && npm run build -w @open-paw/host && npm run build -w @open-paw/desktop",
     "build:core": "npm run build -w @open-paw/shared && npm run build -w @open-paw/core",
-    "build:web": "npm run build:core && npm run build -w @open-paw/host && npm run build -w @open-paw/desktop && npm run build -w @open-paw/server && npm run build -w @open-paw/cloud",
+    "build:web": "npm run build:core && npm run build -w @open-paw/host && npm run build -w @open-paw/cli && npm run build -w @open-paw/desktop && npm run build -w @open-paw/server && npm run build -w @open-paw/cloud",
     "cloud": "npm run build:core && npm run build -w @open-paw/host && npm run build -w @open-paw/desktop && npm run build -w @open-paw/cloud && npm run start -w @open-paw/cloud",
     "dev": "npm run dev -w @open-paw/desktop",
     "local": "npm run build:core && npm run build -w @open-paw/host && npm run build -w @open-paw/desktop && npm run start -w @open-paw/desktop",
