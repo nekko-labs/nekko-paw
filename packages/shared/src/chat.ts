@@ -61,6 +61,8 @@ export interface Session {
   specLinked?: boolean;
   /** Spec-driven methodology id for this chat (see SPEC_METHODOLOGIES). */
   specMethodology?: string;
+  /** When set, the chat picks the best model per turn (model auto-mode). */
+  autoModel?: boolean;
   /** Tool-execution policy for this chat. */
   mode?: ChatMode;
   /** Tool names the user disabled for this chat (subset of the builtins). */

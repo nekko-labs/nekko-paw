@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { AgentEvent, ChatMessage, Session, ToolCall, ContextBundle, IndexedFile, ModelInfo } from '@open-paw/shared';
-import { estimateCostUSD } from '@open-paw/shared';
+import { estimateCostUSD, recommendModel, AUTO_MODEL_ID } from '@open-paw/shared';
 import { useStore } from '../store.js';
 import { Markdown } from './Markdown.js';
 import { ContextInspector } from './ContextInspector.js';
@@ -56,7 +56,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
       setSession(s);
       const st = useStore.getState();
       setProviderId(s?.providerId ?? st.activeProviderId ?? providers[0]?.id ?? null);
-      setModelId(s?.modelId ?? st.activeModelId ?? null);
+      setModelId(s?.autoModel ? AUTO_MODEL_ID : (s?.modelId ?? st.activeModelId ?? null));
     });
     refreshCtx();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -67,7 +67,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     if (!providerId) { setModels([]); return; }
     window.nekko.listModels(providerId).then((m) => {
       setModels(m);
-      setModelId((cur) => (cur && m.some((x) => x.id === cur) ? cur : m[0]?.id ?? null));
+      setModelId((cur) => (cur === AUTO_MODEL_ID || (cur && m.some((x) => x.id === cur)) ? cur : m[0]?.id ?? null));
     }).catch(() => setModels([]));
   }, [providerId]);
 
@@ -135,21 +135,34 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     setMascotMood('thinking');
   };
 
+  // The concrete model to run this turn: the picked one, or — in Auto mode —
+  // the best available model for the prompt (favorites break ties).
+  const resolveModelId = (text: string): string | null => {
+    if (modelId !== AUTO_MODEL_ID) return modelId;
+    const favSet = new Set(settings?.favoriteModels ?? []);
+    const favs = new Set(models.filter((m) => favSet.has(`${providerId}::${m.id}`)).map((m) => m.id));
+    return recommendModel(models, text, favs);
+  };
+
   const send = async () => {
-    if (!draft.trim() || !providerId || !modelId) return;
+    if (!draft.trim() || !providerId) return;
     const text = draft;
+    const useModel = resolveModelId(text);
+    if (!useModel) return;
     setDraft('');
     beginTurn();
     setSession((prev) =>
       prev ? { ...prev, messages: [...prev.messages, { id: 'tmp', role: 'user', content: text, createdAt: Date.now() }] } : prev,
     );
-    await window.nekko.sendChat({ sessionId, providerId, modelId, text });
+    await window.nekko.sendChat({ sessionId, providerId, modelId: useModel, text });
   };
 
   const regenerate = async () => {
-    if (streaming || !providerId || !modelId || !session) return;
+    if (streaming || !providerId || !session) return;
     const lastUser = [...session.messages].reverse().find((m) => m.role === 'user');
     if (!lastUser) return;
+    const useModel = resolveModelId(lastUser.content);
+    if (!useModel) return;
     beginTurn();
     setSession((prev) => {
       if (!prev) return prev;
@@ -157,11 +170,13 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
       while (msgs.length && msgs[msgs.length - 1].role !== 'user') msgs.pop();
       return { ...prev, messages: msgs };
     });
-    await window.nekko.sendChat({ sessionId, providerId, modelId, text: lastUser.content, regenerate: true });
+    await window.nekko.sendChat({ sessionId, providerId, modelId: useModel, text: lastUser.content, regenerate: true });
   };
 
   const editResend = async (messageId: string, newText: string) => {
-    if (!providerId || !modelId || !newText.trim()) return;
+    if (!providerId || !newText.trim()) return;
+    const useModel = resolveModelId(newText);
+    if (!useModel) return;
     await window.nekko.truncateSession(sessionId, messageId);
     beginTurn();
     setSession((prev) => {
@@ -170,7 +185,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
       const kept = idx >= 0 ? prev.messages.slice(0, idx) : prev.messages;
       return { ...prev, messages: [...kept, { id: 'tmp', role: 'user', content: newText, createdAt: Date.now() }] };
     });
-    await window.nekko.sendChat({ sessionId, providerId, modelId, text: newText });
+    await window.nekko.sendChat({ sessionId, providerId, modelId: useModel, text: newText });
   };
 
   const exportChat = () => {
@@ -241,12 +256,27 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
               {!hasProvider && <option value="">No provider</option>}
               {providers.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
             </select>
-            <select className="input min-w-0 flex-1 py-1 text-[12px] md:max-w-[180px]" value={modelId ?? ''} onChange={(e) => setModelId(e.target.value)}>
+            <select
+              className="input min-w-0 flex-1 py-1 text-[12px] md:max-w-[180px]"
+              value={modelId ?? ''}
+              onChange={(e) => {
+                const v = e.target.value;
+                setModelId(v);
+                window.nekko.setSessionOptions(sessionId, { autoModel: v === AUTO_MODEL_ID }).catch(() => {});
+              }}
+              title={modelId === AUTO_MODEL_ID ? 'Open Paw picks the best model for each message' : undefined}
+            >
               {models.length === 0 && <option value="">No models</option>}
+              {models.length > 1 && <option value={AUTO_MODEL_ID}>✨ Auto (pick best)</option>}
               {sortedModels.map((m) => (
                 <option key={m.id} value={m.id}>{favoriteModels.has(`${providerId}::${m.id}`) ? '★ ' : ''}{m.name}</option>
               ))}
             </select>
+            {modelId === AUTO_MODEL_ID && draft.trim() && (() => {
+              const picked = resolveModelId(draft);
+              const name = models.find((m) => m.id === picked)?.name;
+              return name ? <span className="chip shrink-0 text-[10px]" title="Model Auto will use for this message">→ {name}</span> : null;
+            })()}
             {session?.parentSessionId && <span className="chip shrink-0 text-[10px]">sub-agent</span>}
           </div>
           <div className="flex shrink-0 items-center gap-1">
