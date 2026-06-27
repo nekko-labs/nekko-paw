@@ -3,7 +3,42 @@ import type { AgentEvent, Session, ShellOption, TerminalInfo, WorkspaceFolder } 
 import { useStore, type WbGroup, type WbPane } from '../store.js';
 import { ChatPane } from '../components/ChatPane.js';
 import { TerminalPane } from '../components/TerminalPane.js';
-import { ChatIcon, TerminalIcon, PlusIcon, SplitIcon, CloseIcon, FolderIcon } from '../icons.js';
+import { FilePane } from '../components/FilePane.js';
+import { BrowserPane } from '../components/BrowserPane.js';
+import { DiffPane } from '../components/DiffPane.js';
+import { ChatIcon, TerminalIcon, PlusIcon, SplitIcon, CloseIcon, FolderIcon, FileIcon, ExternalIcon } from '../icons.js';
+
+/** Short label for a pane's tab/title. */
+function paneTitle(pane: WbPane, sessions: Session[], terminals: TerminalInfo[]): string {
+  if (pane.kind === 'chat') return sessions.find((s) => s.id === pane.refId)?.title ?? 'Chat';
+  if (pane.kind === 'terminal') return terminals.find((x) => x.id === pane.refId)?.title || 'Terminal';
+  if (pane.kind === 'browser') {
+    try { return new URL(pane.refId).host || 'Browser'; } catch { return 'Browser'; }
+  }
+  const base = pane.refId.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || pane.refId;
+  return pane.kind === 'diff' ? `Δ ${base}` : base;
+}
+
+/** Icon for a pane's tab by kind. */
+function PaneIcon({ kind }: { kind: WbPane['kind'] }) {
+  const cls = 'h-3.5 w-3.5 shrink-0 text-ink-faint';
+  if (kind === 'terminal') return <TerminalIcon className={cls} />;
+  if (kind === 'browser') return <ExternalIcon className={cls} />;
+  if (kind === 'file' || kind === 'diff') return <FileIcon className={cls} />;
+  return <ChatIcon className={cls} />;
+}
+
+/** Render a pane's body by kind. */
+function PaneBody({ pane }: { pane: WbPane }) {
+  switch (pane.kind) {
+    case 'chat': return <ChatPane key={pane.refId} sessionId={pane.refId} />;
+    case 'terminal': return <TerminalPane key={pane.refId} terminalId={pane.refId} />;
+    case 'file': return <FilePane key={pane.refId} path={pane.refId} />;
+    case 'browser': return <BrowserPane key={pane.refId} url={pane.refId} />;
+    case 'diff': return <DiffPane key={pane.refId} path={pane.refId} />;
+    default: return null;
+  }
+}
 
 /**
  * The workbench: a Warp/Devin-style multi-pane surface. The left sidebar groups
@@ -124,11 +159,7 @@ export function WorkbenchView() {
   const toggleCollapse = (id: string) =>
     setCollapsed((c) => { const n = new Set(c); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
-  const titleFor = (pane: WbPane): string => {
-    if (pane.kind === 'chat') return sessions.find((s) => s.id === pane.refId)?.title ?? 'Chat';
-    const t = terminals.find((x) => x.id === pane.refId);
-    return t?.title || 'Terminal';
-  };
+  const titleFor = (pane: WbPane): string => paneTitle(pane, sessions, terminals);
 
   // Project buckets: each workspace + an "unassigned" bucket.
   const buckets: Array<{ ws?: WorkspaceFolder; key: string; name: string }> = [
@@ -435,7 +466,7 @@ function PaneGroupView({
               }`}
               style={isActiveTab ? { background: 'var(--paper)' } : undefined}
             >
-              {p.kind === 'terminal' ? <TerminalIcon className="h-3.5 w-3.5 shrink-0 text-ink-faint" /> : <ChatIcon className="h-3.5 w-3.5 shrink-0 text-ink-faint" />}
+              <PaneIcon kind={p.kind} />
               <span className="max-w-[140px] truncate">{titleFor(p)}</span>
               {status && <StatusDot status={status} />}
               <button
@@ -458,11 +489,7 @@ function PaneGroupView({
       </div>
       {/* Active pane */}
       <div className="min-h-0 flex-1">
-        {active ? (
-          active.kind === 'chat'
-            ? <ChatPane key={active.refId} sessionId={active.refId} />
-            : <TerminalPane key={active.refId} terminalId={active.refId} />
-        ) : null}
+        {active ? <PaneBody pane={active} /> : null}
       </div>
     </div>
   );

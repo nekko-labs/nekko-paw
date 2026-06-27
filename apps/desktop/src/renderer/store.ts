@@ -10,11 +10,14 @@ export interface Toast {
   message: string;
 }
 
-/** A single workbench tab — a chat session or a terminal. */
+/** A single workbench tab — a chat, terminal, file, browser, or diff view. */
 export interface WbPane {
   id: string;
-  kind: 'chat' | 'terminal';
-  /** sessionId (chat) or terminalId (terminal). */
+  kind: 'chat' | 'terminal' | 'file' | 'browser' | 'diff';
+  /**
+   * What the pane points at: sessionId (chat), terminalId (terminal), absolute
+   * file path (file/diff), or URL (browser).
+   */
   refId: string;
 }
 
@@ -70,6 +73,9 @@ interface UiState {
   newTerminal: (workspaceId?: string, shell?: string) => Promise<void>;
   openChatPane: (sessionId: string) => void;
   openTerminalPane: (terminalId: string) => void;
+  openFilePane: (path: string) => void;
+  openBrowserPane: (url?: string) => void;
+  openDiffPane: (path: string) => void;
   closePane: (groupId: string, paneId: string) => void;
   setActivePane: (groupId: string, paneId: string) => void;
   focusGroup: (groupId: string) => void;
@@ -242,6 +248,46 @@ export const useStore = create<UiState>((set, get) => ({
         };
       }
       return addPane(s.groups, s.activeGroupId, { id: newPaneId(), kind: 'terminal', refId: terminalId });
+    });
+  },
+
+  openFilePane: (path) => {
+    set((s) => {
+      const hit = locatePane(s.groups, 'file', path);
+      if (hit) {
+        return {
+          activeGroupId: hit.groupId,
+          groups: s.groups.map((g) => (g.id === hit.groupId ? { ...g, activeId: hit.paneId } : g)),
+        };
+      }
+      return { ...addPane(s.groups, s.activeGroupId, { id: newPaneId(), kind: 'file', refId: path }), view: 'chat' as View };
+    });
+  },
+
+  openBrowserPane: (url) => {
+    set((s) => {
+      const ref = url || 'about:blank';
+      const hit = locatePane(s.groups, 'browser', ref);
+      if (hit) {
+        return {
+          activeGroupId: hit.groupId,
+          groups: s.groups.map((g) => (g.id === hit.groupId ? { ...g, activeId: hit.paneId } : g)),
+        };
+      }
+      return { ...addPane(s.groups, s.activeGroupId, { id: newPaneId(), kind: 'browser', refId: ref }), view: 'chat' as View };
+    });
+  },
+
+  openDiffPane: (path) => {
+    set((s) => {
+      const hit = locatePane(s.groups, 'diff', path);
+      if (hit) {
+        return {
+          activeGroupId: hit.groupId,
+          groups: s.groups.map((g) => (g.id === hit.groupId ? { ...g, activeId: hit.paneId } : g)),
+        };
+      }
+      return { ...addPane(s.groups, s.activeGroupId, { id: newPaneId(), kind: 'diff', refId: path }), view: 'chat' as View };
     });
   },
 

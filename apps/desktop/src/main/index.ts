@@ -19,6 +19,8 @@ function createWindow(): void {
       sandbox: false,
       contextIsolation: true,
       nodeIntegration: false,
+      // Enable <webview> for the in-app browser pane (BrowserPane).
+      webviewTag: true,
     },
   });
 

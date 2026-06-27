@@ -34,7 +34,10 @@ export function SpecPanel({ sessionId, session }: { sessionId: string; session: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, session?.workspaceId, session?.specMethodology]);
 
-  const open = (target: string) => window.nekko.openPath(target);
+  // Open the doc in the built-in viewer pane (not the OS, which silently fails
+  // when nothing is registered for .md and never kept you in the app anyway).
+  const openFilePane = useStore.getState().openFilePane;
+  const open = (target: string) => openFilePane(target);
 
   const changeMethodology = async (id: string) => {
     setMethodologyId(id);
