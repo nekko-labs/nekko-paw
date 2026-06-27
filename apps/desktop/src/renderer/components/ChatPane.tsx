@@ -6,6 +6,7 @@ import { Markdown } from './Markdown.js';
 import { ContextInspector } from './ContextInspector.js';
 import { ChatMetrics } from './ChatMetrics.js';
 import { ChatControls } from './ChatControls.js';
+import { PromptAnalyzer } from './PromptAnalyzer.js';
 import { SendIcon, PanelIcon, ShieldIcon, DownloadIcon } from '../icons.js';
 
 const LOCAL_KINDS = ['ollama', 'lmstudio', 'vllm', 'openai-compat'];
@@ -322,6 +323,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
         </div>
 
         <div className="px-4 pb-4">
+          <PromptAnalyzer text={draft} />
           <div className="relative mx-auto flex w-full max-w-3xl items-end gap-2">
             {atQuery !== null && session?.workspaceId && (
               <div className="card absolute bottom-full left-0 z-40 mb-2 w-full max-w-md overflow-hidden p-1.5 shadow-lg">
