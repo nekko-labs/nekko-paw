@@ -66,4 +66,5 @@ export function registerIpc(host: Host): void {
   host.events.on('agentEvent', (e) => broadcast(IpcEvents.agentEvent, e));
   host.events.on('indexProgress', (s) => broadcast(IpcEvents.indexProgress, s));
   host.events.on('terminalEvent', (e) => broadcast(IpcEvents.terminalEvent, e));
+  host.events.on('changesUpdated', (e) => broadcast(IpcEvents.changesUpdated, e));
 }

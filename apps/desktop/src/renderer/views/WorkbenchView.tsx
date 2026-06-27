@@ -16,8 +16,8 @@ function paneTitle(pane: WbPane, sessions: Session[], terminals: TerminalInfo[])
   if (pane.kind === 'browser') {
     try { return new URL(pane.refId).host || 'Browser'; } catch { return 'Browser'; }
   }
-  const base = pane.refId.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || pane.refId;
-  return pane.kind === 'diff' ? `Δ ${base}` : base;
+  if (pane.kind === 'diff') return 'Changes';
+  return pane.refId.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || pane.refId;
 }
 
 /** Icon for a pane's tab by kind. */
@@ -36,7 +36,7 @@ function PaneBody({ pane }: { pane: WbPane }) {
     case 'terminal': return <TerminalPane key={pane.refId} terminalId={pane.refId} />;
     case 'file': return <FilePane key={pane.refId} path={pane.refId} />;
     case 'browser': return <BrowserPane key={pane.refId} url={pane.refId} />;
-    case 'diff': return <DiffPane key={pane.refId} path={pane.refId} />;
+    case 'diff': return <DiffPane key={pane.refId} sessionId={pane.refId} />;
     default: return null;
   }
 }

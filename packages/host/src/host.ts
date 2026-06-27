@@ -15,6 +15,7 @@ import type {
   IndexedFile,
   DirEntry,
   FileContent,
+  FileChange,
   ConnectorConfig,
   ConnectorKind,
   ConnectorResource,
@@ -43,6 +44,7 @@ import * as memory from './memory.js';
 import { usageSummary, clearUsage } from './usage.js';
 import { indexWorkspace, getIndexStatus, searchWorkspace, listIndexedFiles } from './workspace.js';
 import { readFile, writeFile, listDir } from './files.js';
+import { listChanges, acceptChange, acceptAllChanges, setChangeNotifier } from './changes.js';
 import { sendChat, abortChat, resolveApproval, previewContext, setContextPrefs } from './chat.js';
 import { buildSpec, buildSpecDoc, readSpecDocs, setSpecMethodology, toggleSpecTask, specPathForSession } from './spec.js';
 import { connectRelayAgent, type RelayAgentHandle } from './relay.js';
@@ -148,6 +150,13 @@ export interface Host {
   writeFile(path: string, content: string): void;
   listDir(path: string): DirEntry[];
 
+  /** Files the agent changed this session (for diff/approve). */
+  listChanges(sessionId: string): FileChange[];
+  /** Keep a file's changes — stop tracking it. */
+  acceptChange(sessionId: string, path: string): void;
+  /** Keep all of a session's changes. */
+  acceptAllChanges(sessionId: string): void;
+
   listConnectors(): ConnectorConfig[];
   connectConnector(kind: ConnectorKind, token: string, settings?: Record<string, string>): ConnectorConfig[];
   disconnectConnector(kind: ConnectorKind): ConnectorConfig[];
@@ -171,6 +180,8 @@ export function createHost(opts: { dataDir: string }): Host {
   const onIndexProgress = (s: IndexStatus) => events.emit('indexProgress', s);
   // Fan terminal output out to renderers over the same event bus.
   setTerminalSender((e) => events.emit('terminalEvent', e));
+  // Notify renderers when a session's tracked file changes shift.
+  setChangeNotifier((sessionId) => events.emit('changesUpdated', { sessionId }));
 
   const findProvider = (id: string) => getSettings().providers.find((p) => p.id === id);
 
@@ -321,6 +332,9 @@ export function createHost(opts: { dataDir: string }): Host {
     readFile,
     writeFile,
     listDir,
+    listChanges,
+    acceptChange,
+    acceptAllChanges,
 
     listConnectors: () => getSettings().connectors,
     connectConnector: (kind, token, settings) => {

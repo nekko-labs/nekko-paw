@@ -75,7 +75,8 @@ interface UiState {
   openTerminalPane: (terminalId: string) => void;
   openFilePane: (path: string) => void;
   openBrowserPane: (url?: string) => void;
-  openDiffPane: (path: string) => void;
+  /** Open the diff/approve review for a session's changed files. */
+  openDiffPane: (sessionId: string) => void;
   closePane: (groupId: string, paneId: string) => void;
   setActivePane: (groupId: string, paneId: string) => void;
   focusGroup: (groupId: string) => void;
@@ -278,16 +279,16 @@ export const useStore = create<UiState>((set, get) => ({
     });
   },
 
-  openDiffPane: (path) => {
+  openDiffPane: (sessionId) => {
     set((s) => {
-      const hit = locatePane(s.groups, 'diff', path);
+      const hit = locatePane(s.groups, 'diff', sessionId);
       if (hit) {
         return {
           activeGroupId: hit.groupId,
           groups: s.groups.map((g) => (g.id === hit.groupId ? { ...g, activeId: hit.paneId } : g)),
         };
       }
-      return { ...addPane(s.groups, s.activeGroupId, { id: newPaneId(), kind: 'diff', refId: path }), view: 'chat' as View };
+      return { ...addPane(s.groups, s.activeGroupId, { id: newPaneId(), kind: 'diff', refId: sessionId }), view: 'chat' as View };
     });
   },
 

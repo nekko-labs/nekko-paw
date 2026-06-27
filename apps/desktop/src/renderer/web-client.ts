@@ -17,12 +17,14 @@ function makeWebClient(): NekkoApi {
   const agentCbs = new Set<(e: AgentEvent) => void>();
   const indexCbs = new Set<(s: IndexStatus) => void>();
   const terminalCbs = new Set<(e: TerminalEvent) => void>();
+  const changesCbs = new Set<(e: { sessionId: string }) => void>();
   // Server build version captured when this tab loaded (for refresh detection).
   let loadVersion: string | null = null;
   const dispatchEvent = (channel: string, payload: any) => {
     if (channel === IpcEvents.agentEvent) agentCbs.forEach((cb) => cb(payload));
     else if (channel === IpcEvents.indexProgress) indexCbs.forEach((cb) => cb(payload));
     else if (channel === IpcEvents.terminalEvent) terminalCbs.forEach((cb) => cb(payload));
+    else if (channel === IpcEvents.changesUpdated) changesCbs.forEach((cb) => cb(payload));
   };
 
   // Relay transport: when the page is opened with ?relay=&room=&key=, talk to a
@@ -238,6 +240,10 @@ function makeWebClient(): NekkoApi {
     writeFile: (path, content) => call(IpcChannels.fileWrite, path, content),
     listDir: (path) => call(IpcChannels.dirList, path),
 
+    listChanges: (sessionId) => call(IpcChannels.changesList, sessionId),
+    acceptChange: (sessionId, path) => call(IpcChannels.changeAccept, sessionId, path),
+    acceptAllChanges: (sessionId) => call(IpcChannels.changeAcceptAll, sessionId),
+
     listConnectors: () => call(IpcChannels.connectorsList),
     connectConnector: (kind, t, settings) => call(IpcChannels.connectorConnect, kind, t, settings),
     disconnectConnector: (kind) => call(IpcChannels.connectorDisconnect, kind),
@@ -292,6 +298,10 @@ function makeWebClient(): NekkoApi {
     onTerminalEvent: (cb) => {
       terminalCbs.add(cb);
       return () => terminalCbs.delete(cb);
+    },
+    onChangesUpdated: (cb) => {
+      changesCbs.add(cb);
+      return () => changesCbs.delete(cb);
     },
     onUpdateEvent: (cb) => {
       // Poll the server version; emit 'available' once it differs from load.

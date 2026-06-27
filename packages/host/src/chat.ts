@@ -309,6 +309,7 @@ export async function sendChat(opts: SendOptions, send: Sender): Promise<void> {
                 : settings.workspaces[0]?.path,
               requestApproval,
               mode,
+              sessionId: opts.sessionId,
             });
       },
       temperature: EFFORT_TEMPERATURE[settings.effort ?? 'normal'],

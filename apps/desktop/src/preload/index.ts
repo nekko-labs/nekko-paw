@@ -93,6 +93,10 @@ const api: NekkoApi = {
   writeFile: (path, content) => inv(IpcChannels.fileWrite, path, content),
   listDir: (path) => inv(IpcChannels.dirList, path),
 
+  listChanges: (sessionId) => inv(IpcChannels.changesList, sessionId),
+  acceptChange: (sessionId, path) => inv(IpcChannels.changeAccept, sessionId, path),
+  acceptAllChanges: (sessionId) => inv(IpcChannels.changeAcceptAll, sessionId),
+
   listConnectors: () => inv(IpcChannels.connectorsList),
   connectConnector: (kind: ConnectorKind, token, settings) => inv(IpcChannels.connectorConnect, kind, token, settings),
   disconnectConnector: (kind: ConnectorKind) => inv(IpcChannels.connectorDisconnect, kind),
@@ -139,6 +143,11 @@ const api: NekkoApi = {
     const listener = (_: unknown, e: TerminalEvent) => cb(e);
     ipcRenderer.on(IpcEvents.terminalEvent, listener);
     return () => ipcRenderer.removeListener(IpcEvents.terminalEvent, listener);
+  },
+  onChangesUpdated: (cb: (e: { sessionId: string }) => void) => {
+    const listener = (_: unknown, e: { sessionId: string }) => cb(e);
+    ipcRenderer.on(IpcEvents.changesUpdated, listener);
+    return () => ipcRenderer.removeListener(IpcEvents.changesUpdated, listener);
   },
 };
 

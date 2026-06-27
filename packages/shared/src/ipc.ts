@@ -7,7 +7,7 @@ import type { TerminalInfo, TerminalSnapshot, ShellOption } from './terminal.js'
 import type { ContextBundle } from './context.js';
 import type { MemoryEntry, MemoryScope } from './memory.js';
 import type { WorkspaceFolder, IndexStatus, SearchHit, IndexedFile } from './workspace.js';
-import type { DirEntry, FileContent } from './files.js';
+import type { DirEntry, FileContent, FileChange } from './files.js';
 import type { ConnectorConfig, ConnectorKind, ConnectorResource } from './connectors.js';
 import type { GuardrailRule } from './guardrails.js';
 import type { AppInfo, UpdateInfo } from './update.js';
@@ -88,6 +88,10 @@ export const IpcChannels = {
   fileWrite: 'file:write',
   dirList: 'dir:list',
 
+  changesList: 'changes:list',
+  changeAccept: 'changes:accept',
+  changeAcceptAll: 'changes:acceptAll',
+
   connectorsList: 'connectors:list',
   connectorConnect: 'connector:connect',
   connectorDisconnect: 'connector:disconnect',
@@ -117,6 +121,7 @@ export const IpcEvents = {
   indexProgress: 'index:progress',
   updateEvent: 'update:event',
   terminalEvent: 'terminal:event',
+  changesUpdated: 'changes:updated',
 } as const;
 
 /** The typed API the preload bridge exposes as window.nekko. */
@@ -222,6 +227,13 @@ export interface NekkoApi {
   /** List a directory's immediate entries (file explorer). */
   listDir(path: string): Promise<DirEntry[]>;
 
+  /** Files the agent changed this session (diff/approve). */
+  listChanges(sessionId: string): Promise<FileChange[]>;
+  /** Keep a file's changes — stop tracking it. */
+  acceptChange(sessionId: string, path: string): Promise<void>;
+  /** Keep all of a session's changes. */
+  acceptAllChanges(sessionId: string): Promise<void>;
+
   listConnectors(): Promise<ConnectorConfig[]>;
   connectConnector(kind: ConnectorKind, token: string, settings?: Record<string, string>): Promise<ConnectorConfig[]>;
   disconnectConnector(kind: ConnectorKind): Promise<ConnectorConfig[]>;
@@ -253,4 +265,6 @@ export interface NekkoApi {
   onIndexProgress(cb: (s: IndexStatus) => void): () => void;
   onUpdateEvent(cb: (u: UpdateInfo) => void): () => void;
   onTerminalEvent(cb: (e: import('./terminal.js').TerminalEvent) => void): () => void;
+  /** Fires when a session's tracked file changes shift (after an agent edit/accept). */
+  onChangesUpdated(cb: (e: { sessionId: string }) => void): () => void;
 }

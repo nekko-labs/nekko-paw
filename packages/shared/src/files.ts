@@ -17,3 +17,12 @@ export interface FileContent {
   /** True if the file looks binary (not shown as text). */
   binary: boolean;
 }
+
+/** A file the agent changed this session — original vs current, for diff/approve. */
+export interface FileChange {
+  path: string;
+  /** Content before the agent's first edit this session ('' if newly created). */
+  original: string;
+  /** Content on disk now. */
+  current: string;
+}

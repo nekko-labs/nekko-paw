@@ -38,12 +38,22 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
   const [atFiles, setAtFiles] = useState<IndexedFile[]>([]);
   const [cost, setCost] = useState(0);
   const [ctxOpen, setCtxOpen] = useState(false);
+  const [changeCount, setChangeCount] = useState(0);
   const [providerId, setProviderId] = useState<string | null>(null);
   const [modelId, setModelId] = useState<string | null>(null);
   const [models, setModels] = useState<ModelInfo[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const turnStart = useRef(0);
+
+  // Track how many files the agent changed this chat (for the Changes button).
+  useEffect(() => {
+    let live = true;
+    const load = () => window.nekko.listChanges(sessionId).then((c) => { if (live) setChangeCount(c.length); }).catch(() => {});
+    load();
+    const off = window.nekko.onChangesUpdated((e) => { if (e.sessionId === sessionId) load(); });
+    return () => { live = false; off(); };
+  }, [sessionId]);
 
   useEffect(() => onRunningChange?.(streaming), [streaming, onRunningChange]);
 
@@ -281,6 +291,15 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
             {session?.parentSessionId && <span className="chip shrink-0 text-[10px]">sub-agent</span>}
           </div>
           <div className="flex shrink-0 items-center gap-1">
+            {changeCount > 0 && (
+              <button
+                className="btn btn-ghost px-2 py-1 text-[12px] font-medium text-accent"
+                onClick={() => useStore.getState().openDiffPane(sessionId)}
+                title="Review the agent's file changes"
+              >
+                Δ {changeCount}
+              </button>
+            )}
             {!!session?.messages.length && (
               <button className="btn btn-ghost px-2 py-1" onClick={exportChat} title="Export chat as Markdown"><DownloadIcon /></button>
             )}

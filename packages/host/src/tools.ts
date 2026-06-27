@@ -11,6 +11,7 @@ import {
 import { dirname, isAbsolute, join, relative, resolve } from 'path';
 import type { ToolCall, ToolResult, AppSettings, ChatMode } from '@open-paw/shared';
 import { classifyCommand } from '@open-paw/core';
+import { recordOriginal } from './changes.js';
 
 const execAsync = promisify(exec);
 
@@ -25,6 +26,8 @@ export interface ToolHostOptions {
   requestApproval: (call: ToolCall, reason: string, severity: 'low' | 'medium' | 'high') => Promise<boolean>;
   /** Per-chat tool-execution policy (defaults to guardrails). */
   mode?: ChatMode;
+  /** Chat this tool runs for — used to track file changes for diff/approve. */
+  sessionId?: string;
 }
 
 /** Whether a mutating tool needs an up-front confirm in this mode. */
@@ -78,6 +81,7 @@ export async function executeTool(call: ToolCall, opts: ToolHostOptions): Promis
         if (asksEverything(opts)) {
           if (!(await opts.requestApproval(call, `Write ${p}`, 'medium'))) return err(call, 'Write not approved by user.');
         }
+        recordOriginal(opts.sessionId, p);
         mkdirSync(dirname(p), { recursive: true });
         writeFileSync(p, String(a.content ?? ''), 'utf8');
         return ok(call, `Wrote ${p} (${String(a.content ?? '').length} bytes)`);
@@ -93,6 +97,7 @@ export async function executeTool(call: ToolCall, opts: ToolHostOptions): Promis
         const count = cur.split(a.old_string).length - 1;
         if (count === 0) return err(call, 'old_string not found in file.');
         if (count > 1) return err(call, `old_string matched ${count} times; make it unique.`);
+        recordOriginal(opts.sessionId, p);
         writeFileSync(p, cur.replace(a.old_string, a.new_string), 'utf8');
         return ok(call, `Edited ${p}`);
       }
