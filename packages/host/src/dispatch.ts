@@ -87,6 +87,17 @@ export function createDispatcher(host: Host): (channel: string, args: any[]) => 
     [C.changeAccept]: ([sid, p]) => host.acceptChange(sid, p),
     [C.changeAcceptAll]: ([sid]) => host.acceptAllChanges(sid),
 
+    [C.commentsList]: ([p]) => host.listComments(p),
+    [C.commentAdd]: ([p, line, lineText, comment]) => host.addComment(p, line, lineText, comment),
+    [C.commentResolve]: ([p, id]) => host.resolveComment(p, id),
+
+    [C.designGet]: ([wid]) => host.getDesignBoard(wid),
+    [C.designAddPage]: ([wid, label, url]) => host.addDesignPage(wid, label, url),
+    [C.designUpdatePage]: ([wid, pid, patch]) => host.updateDesignPage(wid, pid, patch),
+    [C.designRemovePage]: ([wid, pid]) => host.removeDesignPage(wid, pid),
+    [C.designAddNote]: ([wid, pid, text]) => host.addDesignNote(wid, pid, text),
+    [C.designResolveNote]: ([wid, pid, nid]) => host.resolveDesignNote(wid, pid, nid),
+
     [C.connectorsList]: () => host.listConnectors(),
     [C.connectorConnect]: ([kind, token, settings]) => host.connectConnector(kind, token, settings),
     [C.connectorDisconnect]: ([kind]) => host.disconnectConnector(kind),

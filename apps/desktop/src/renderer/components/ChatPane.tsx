@@ -155,18 +155,32 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
     return recommendModel(models, text, favs);
   };
 
-  const send = async () => {
-    if (!draft.trim() || !providerId) return;
-    const text = draft;
+  const send = async (override?: string) => {
+    const text = override ?? draft;
+    if (!text.trim() || !providerId) return;
     const useModel = resolveModelId(text);
     if (!useModel) return;
-    setDraft('');
+    if (override === undefined) setDraft('');
     beginTurn();
     setSession((prev) =>
       prev ? { ...prev, messages: [...prev.messages, { id: 'tmp', role: 'user', content: text, createdAt: Date.now() }] } : prev,
     );
     await window.nekko.sendChat({ sessionId, providerId, modelId: useModel, text });
   };
+
+  // A comment/note routed here from the editor or design board: drop it into the
+  // draft ("Add to prompt") or send it now ("Run now"). Wait for the provider to
+  // be ready (a freshly-opened pane loads it async) before a run-now fires.
+  const composerInbox = useStore((s) => s.composerInbox);
+  useEffect(() => {
+    if (!composerInbox || composerInbox.sessionId !== sessionId) return;
+    if (composerInbox.run && (!providerId || streaming)) return;
+    const { text, run } = composerInbox;
+    useStore.setState({ composerInbox: null });
+    if (run) void send(text);
+    else { setDraft((d) => (d.trim() ? d + '\n\n' : '') + text); composerRef.current?.focus(); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [composerInbox, sessionId, providerId, streaming]);
 
   const regenerate = async () => {
     if (streaming || !providerId || !session) return;
@@ -390,7 +404,7 @@ export function ChatPane({ sessionId, onRunningChange }: { sessionId: string; on
             {streaming ? (
               <button className="btn btn-outline" onClick={() => window.nekko.abortChat(sessionId)}>Stop</button>
             ) : (
-              <button className="btn btn-primary" onClick={send} disabled={!draft.trim() || !hasProvider}><SendIcon /></button>
+              <button className="btn btn-primary" onClick={() => send()} disabled={!draft.trim() || !hasProvider}><SendIcon /></button>
             )}
           </div>
         </div>

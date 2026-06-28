@@ -2,7 +2,15 @@ import { create } from 'zustand';
 import type { AppSettings, Session, ProviderConfig, ModelInfo, TerminalInfo } from '@open-paw/shared';
 import type { MascotMood } from './components/Mascot.js';
 
-export type View = 'command' | 'chat' | 'projects' | 'models' | 'connectors' | 'memory' | 'settings';
+export type View = 'command' | 'chat' | 'projects' | 'models' | 'connectors' | 'memory' | 'settings' | 'design';
+
+/** A message routed into a chat's composer from another surface (editor comment, design note). */
+export interface ComposerInbox {
+  sessionId: string;
+  text: string;
+  /** true = send immediately ("Run now"); false = drop into the draft ("Add to prompt"). */
+  run: boolean;
+}
 
 export interface Toast {
   id: string;
@@ -53,6 +61,9 @@ interface UiState {
   groups: WbGroup[];
   activeGroupId: string | null;
 
+  /** Pending message to hand a chat's composer (set by editor comments / design notes). */
+  composerInbox: ComposerInbox | null;
+
   setActiveWorkspace: (id: string | null) => void;
   pushToast: (kind: Toast['kind'], message: string) => void;
   dismissToast: (id: string) => void;
@@ -75,6 +86,8 @@ interface UiState {
   openTerminalPane: (terminalId: string) => void;
   openFilePane: (path: string) => void;
   openBrowserPane: (url?: string) => void;
+  /** Route text to a chat's composer — Add to prompt (run=false) or Run now (run=true). */
+  sendToChat: (text: string, run: boolean) => Promise<void>;
   /** Open the diff/approve review for a session's changed files. */
   openDiffPane: (sessionId: string) => void;
   closePane: (groupId: string, paneId: string) => void;
@@ -128,6 +141,7 @@ export const useStore = create<UiState>((set, get) => ({
   terminals: [],
   groups: [],
   activeGroupId: null,
+  composerInbox: null,
 
   setActiveWorkspace: (id) => set({ activeWorkspaceId: id }),
   pushToast: (kind, message) => {
@@ -277,6 +291,20 @@ export const useStore = create<UiState>((set, get) => ({
       }
       return { ...addPane(s.groups, s.activeGroupId, { id: newPaneId(), kind: 'browser', refId: ref }), view: 'chat' as View };
     });
+  },
+
+  sendToChat: async (text, run) => {
+    // Target the active chat; create one if there isn't a usable session.
+    let sid = get().activeSessionId;
+    if (!sid || !get().sessions.some((s) => s.id === sid)) {
+      const s = await window.nekko.createSession(get().activeWorkspaceId ?? undefined);
+      await get().refreshSessions();
+      sid = s.id;
+      set({ activeSessionId: sid });
+    }
+    set({ view: 'chat' });
+    get().openChatPane(sid);
+    set({ composerInbox: { sessionId: sid, text, run } });
   },
 
   openDiffPane: (sessionId) => {

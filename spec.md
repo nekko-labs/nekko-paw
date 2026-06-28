@@ -71,24 +71,25 @@ without leaving the calm single-window experience.
 - Modeled on PromptLint's diagnostics approach (client-side, no API cost), with an
   optional LLM-powered "Improve" escalation later.
 
-## Next features (v1.0)
+## Newest features (shipped)
 
-### 7. Inline editor comments
-- In the file editor, a **+** appears on a line; clicking it opens an inline comment the
-  agent will pick up. The comment carries its file + line context.
+### 7. Inline editor comments ✅
+- In the file editor, a **+** appears on each line (a scroll-synced gutter); clicking it opens
+  an inline comment the agent picks up. The comment carries its file + line context and
+  persists as a gutter marker (in `comments.json`) until resolved.
 - Two actions: **Add to prompt** (queue the comment into the composer so several
-  annotations batch into one ask) and **Run now** (dispatch it immediately to the pane's
-  agent). Lets you review code in place and turn margin notes into agent work without
-  leaving the file. Comments persist per session until resolved.
+  annotations batch into one ask) and **Run now** (dispatch it immediately to the active
+  chat). A bottom dock lists a line's comments with re-send / resolve. Turns in-place review
+  notes into agent work without leaving the file.
 
-### 8. Design board (Figma-style)
+### 8. Design board (Figma-style) ✅
 - A **Design** tab laying out the app's UI pages as snapshots on a zoomable board, like a
-  Figma canvas. v1: read-only snapshots, captured per page/route.
-- Click a snapshot to add **persistent notes** (saved with the board) or **comments** that
-  optionally feed the prompt — the same **Add to prompt / Run now** actions as inline
-  comments.
-- As the agent edits the UI, snapshots **refresh so you watch the design update live**; an
-  **"updating" indicator** flags a page being changed, and clicking it jumps to the driving
+  Figma canvas. v1: read-only **live** snapshots — each card is a scaled, non-interactive
+  `<iframe>` of the page (no capture infra), so it reflects the app as it actually renders.
+- Click a card to add **persistent notes** (saved with the board) or **comments** that feed
+  the prompt — the same **Add to prompt / Run now** actions as inline comments.
+- As the agent edits the UI, previews **reload so you watch the design update live**; an
+  **"updating" indicator** flags pages being changed and clicking it jumps to the driving
   agent's chat.
 
 ## Decisions & rationale (made autonomously; revisit if desired)

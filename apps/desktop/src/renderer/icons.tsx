@@ -45,6 +45,7 @@ export const PanelIcon = (p: P) => (<S {...p}><rect x="3" y="3" width="18" heigh
 export const PinIcon = (p: P) => (<S {...p}><path d="M12 17v5M9 3h6l-1 6 3 3H7l3-3z" /></S>);
 export const FileIcon = (p: P) => (<S {...p}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /></S>);
 export const GridIcon = (p: P) => (<S {...p}><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></S>);
+export const LayoutIcon = (p: P) => (<S {...p}><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18M9 9v12" /></S>);
 export const ExternalIcon = (p: P) => (<S {...p}><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></S>);
 export const DownloadIcon = (p: P) => (<S {...p}><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16" /></S>);
 export const PencilIcon = (p: P) => (<S {...p}><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></S>);

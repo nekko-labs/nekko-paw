@@ -16,6 +16,9 @@ import type {
   DirEntry,
   FileContent,
   FileChange,
+  LineComment,
+  DesignBoard,
+  DesignPage,
   ConnectorConfig,
   ConnectorKind,
   ConnectorResource,
@@ -45,6 +48,15 @@ import { usageSummary, clearUsage } from './usage.js';
 import { indexWorkspace, getIndexStatus, searchWorkspace, listIndexedFiles } from './workspace.js';
 import { readFile, writeFile, listDir } from './files.js';
 import { listChanges, acceptChange, acceptAllChanges, setChangeNotifier } from './changes.js';
+import { listComments, addComment, resolveComment } from './comments.js';
+import {
+  getDesignBoard,
+  addDesignPage,
+  updateDesignPage,
+  removeDesignPage,
+  addDesignNote,
+  resolveDesignNote,
+} from './design.js';
 import { sendChat, abortChat, resolveApproval, previewContext, setContextPrefs } from './chat.js';
 import { buildSpec, buildSpecDoc, readSpecDocs, setSpecMethodology, toggleSpecTask, specPathForSession } from './spec.js';
 import { connectRelayAgent, type RelayAgentHandle } from './relay.js';
@@ -156,6 +168,19 @@ export interface Host {
   acceptChange(sessionId: string, path: string): void;
   /** Keep all of a session's changes. */
   acceptAllChanges(sessionId: string): void;
+
+  /** Inline editor comments on a file. */
+  listComments(path: string): LineComment[];
+  addComment(path: string, line: number, lineText: string, comment: string): LineComment[];
+  resolveComment(path: string, id: string): LineComment[];
+
+  /** Design board: a workspace's UI page snapshots + persistent notes. */
+  getDesignBoard(workspaceId: string): DesignBoard;
+  addDesignPage(workspaceId: string, label: string, url: string): DesignBoard;
+  updateDesignPage(workspaceId: string, pageId: string, patch: Partial<Pick<DesignPage, 'label' | 'url'>>): DesignBoard;
+  removeDesignPage(workspaceId: string, pageId: string): DesignBoard;
+  addDesignNote(workspaceId: string, pageId: string, text: string): DesignBoard;
+  resolveDesignNote(workspaceId: string, pageId: string, noteId: string): DesignBoard;
 
   listConnectors(): ConnectorConfig[];
   connectConnector(kind: ConnectorKind, token: string, settings?: Record<string, string>): ConnectorConfig[];
@@ -335,6 +360,15 @@ export function createHost(opts: { dataDir: string }): Host {
     listChanges,
     acceptChange,
     acceptAllChanges,
+    listComments,
+    addComment,
+    resolveComment,
+    getDesignBoard,
+    addDesignPage,
+    updateDesignPage,
+    removeDesignPage,
+    addDesignNote,
+    resolveDesignNote,
 
     listConnectors: () => getSettings().connectors,
     connectConnector: (kind, token, settings) => {

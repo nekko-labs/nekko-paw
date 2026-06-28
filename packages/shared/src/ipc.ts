@@ -7,7 +7,8 @@ import type { TerminalInfo, TerminalSnapshot, ShellOption } from './terminal.js'
 import type { ContextBundle } from './context.js';
 import type { MemoryEntry, MemoryScope } from './memory.js';
 import type { WorkspaceFolder, IndexStatus, SearchHit, IndexedFile } from './workspace.js';
-import type { DirEntry, FileContent, FileChange } from './files.js';
+import type { DirEntry, FileContent, FileChange, LineComment } from './files.js';
+import type { DesignBoard, DesignPage } from './design.js';
 import type { ConnectorConfig, ConnectorKind, ConnectorResource } from './connectors.js';
 import type { GuardrailRule } from './guardrails.js';
 import type { AppInfo, UpdateInfo } from './update.js';
@@ -91,6 +92,17 @@ export const IpcChannels = {
   changesList: 'changes:list',
   changeAccept: 'changes:accept',
   changeAcceptAll: 'changes:acceptAll',
+
+  commentsList: 'comments:list',
+  commentAdd: 'comment:add',
+  commentResolve: 'comment:resolve',
+
+  designGet: 'design:get',
+  designAddPage: 'design:addPage',
+  designUpdatePage: 'design:updatePage',
+  designRemovePage: 'design:removePage',
+  designAddNote: 'design:addNote',
+  designResolveNote: 'design:resolveNote',
 
   connectorsList: 'connectors:list',
   connectorConnect: 'connector:connect',
@@ -233,6 +245,19 @@ export interface NekkoApi {
   acceptChange(sessionId: string, path: string): Promise<void>;
   /** Keep all of a session's changes. */
   acceptAllChanges(sessionId: string): Promise<void>;
+
+  /** Inline editor comments on a file (gutter "+" annotations the agent picks up). */
+  listComments(path: string): Promise<LineComment[]>;
+  addComment(path: string, line: number, lineText: string, comment: string): Promise<LineComment[]>;
+  resolveComment(path: string, id: string): Promise<LineComment[]>;
+
+  /** Design board: a workspace's UI page snapshots + persistent notes. */
+  getDesignBoard(workspaceId: string): Promise<DesignBoard>;
+  addDesignPage(workspaceId: string, label: string, url: string): Promise<DesignBoard>;
+  updateDesignPage(workspaceId: string, pageId: string, patch: Partial<Pick<DesignPage, 'label' | 'url'>>): Promise<DesignBoard>;
+  removeDesignPage(workspaceId: string, pageId: string): Promise<DesignBoard>;
+  addDesignNote(workspaceId: string, pageId: string, text: string): Promise<DesignBoard>;
+  resolveDesignNote(workspaceId: string, pageId: string, noteId: string): Promise<DesignBoard>;
 
   listConnectors(): Promise<ConnectorConfig[]>;
   connectConnector(kind: ConnectorKind, token: string, settings?: Record<string, string>): Promise<ConnectorConfig[]>;

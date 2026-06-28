@@ -7,6 +7,7 @@ import { CommandPalette } from './components/CommandPalette.js';
 import { UpdateBanner } from './components/UpdateBanner.js';
 import { RelayPairing } from './components/RelayPairing.js';
 import { WorkbenchView } from './views/WorkbenchView.js';
+import { DesignBoardView } from './views/DesignBoardView.js';
 import { CommandCenterView } from './views/CommandCenterView.js';
 import { ModelsView } from './views/ModelsView.js';
 import { ProjectsView } from './views/ProjectsView.js';
@@ -21,11 +22,13 @@ import {
   BrainIcon,
   GearIcon,
   GridIcon,
+  LayoutIcon,
 } from './icons.js';
 
 const NAV: Array<{ view: View; labelKey: string; Icon: (p: { className?: string }) => JSX.Element }> = [
   { view: 'command', labelKey: 'nav.command', Icon: GridIcon },
   { view: 'chat', labelKey: 'nav.chat', Icon: ChatIcon },
+  { view: 'design', labelKey: 'nav.design', Icon: LayoutIcon },
   { view: 'projects', labelKey: 'nav.projects', Icon: FolderIcon },
   { view: 'models', labelKey: 'nav.models', Icon: ServerIcon },
   { view: 'connectors', labelKey: 'nav.connectors', Icon: PlugIcon },
@@ -151,6 +154,7 @@ export function App() {
         )}
         {view === 'command' && <CommandCenterView />}
         {view === 'chat' && <WorkbenchView />}
+        {view === 'design' && <DesignBoardView />}
         {view === 'models' && <ModelsView />}
         {view === 'projects' && <ProjectsView />}
         {view === 'connectors' && <ConnectorsView />}

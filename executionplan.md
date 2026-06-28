@@ -156,25 +156,31 @@
 - [x] Suggests a model based on the prompt (complexity/context heuristic → fast/balanced/frontier)
 - [ ] (Later) opt-in "Improve prompt" button → LLM rewrite with before/after diff — deferred
 
-## Wave: editor comments + design board  (next — v1.0)
+## Wave: editor comments + design board  ✅ shipped
 
 ### Inline editor comments
-- [ ] Drop a **+** comment on a line of code; the agent picks it up
-  - gutter **+** overlay in `FilePane`; `host/comments.ts` per-session store + `comments:add/list/resolve` IPC
-- [ ] Two actions: **Add to prompt** (queue into the composer) and **Run now** (send immediately)
-  - reuse the existing composer/`sendChat` path; persist comments per session; resolve clears the marker
+- [x] Drop a **+** comment on a line of code; the agent picks it up
+  - gutter **+** overlay in `FilePane` (non-wrapping textarea + scroll-synced line gutter); `host/comments.ts` per-file store persisted to `comments.json` + `comments:list/add/resolve` IPC; commented lines keep a marker until resolved
+- [x] Two actions: **Add to prompt** (queue into the composer) and **Run now** (send immediately)
+  - both route through a new `store.sendToChat(text, run)` → `composerInbox`, which `ChatPane` consumes (append to draft, or send once the provider is ready); a bottom comment dock shows existing comments with re-send + resolve
 
 ### Design board (Figma-style snapshots)
-- [ ] A **Design** tab showing the app's UI pages as snapshots on a zoom/pan board
-  - CSS-transform board (no dep); per-page snapshot capture via the screenshot/`<webview>` path; `design.json` per workspace
-- [ ] Click a page to add **persistent notes** or **comments** (Add to prompt / Run now)
-- [ ] Watch snapshots update live as the agent works; an **"updating" badge** per page links to the driving agent (`openChatPane`)
+- [x] A **Design** tab showing the app's UI pages as snapshots on a zoom/pan board
+  - new left-rail `design` view (`DesignBoardView`); each card is a live, scaled, read-only `<iframe>` of the page (no capture infra needed); zoom slider; `host/design.ts` + `design.json` per workspace; add/remove pages
+- [x] Click a page to add **persistent notes** or **comments** (Add to prompt / Run now)
+  - side sheet: notes persist to `design.json` (`design:addNote/resolveNote`); comments route to a chat via `sendToChat` carrying page identity
+- [x] Watch snapshots update live as the agent works; an **"updating" badge** per page links to the driving agent (`openChatPane`)
+  - subscribes to `onAgentEvent`/`onChangesUpdated` filtered to the workspace's sessions; marks pages updating + reloads the iframe previews on change; the badge opens the running agent's chat
 
 ## Verification status
-- All eight workspaces typecheck (`npm run typecheck`); desktop builds (`npm run build`).
-- The IDE-surfaces wave is NOT yet exercised in the running GUI (couldn't launch Electron
-  in the build env). Needs a hands-on pass: webview browsing, file edit+save, the file tree,
-  the diff line-revert math, and the analyzer overlay.
+- All eight workspaces typecheck (`npm run typecheck`); desktop builds (`npm run build`); 56 core tests pass.
+- **Editor comments + design board verified end-to-end over the web edition**: added a design
+  page (live iframe snapshot), pinned a note (round-trips through the host `design.json`),
+  routed a page comment via "Add to prompt" into the chat composer; opened a file, confirmed
+  the gutter + line numbers, opened the comment dock on a line, persisted a comment
+  (`comments.json`), and routed it to the composer. Screenshot captured of the board.
+- The earlier IDE-surfaces wave (file editor, browser pane, diff/approve, analyzer) is still
+  best exercised with a model connected; the file editor + tree are confirmed via the above.
 
 ## Follow-ups / deferred
 - "Improve prompt" LLM escalation (before/after diff).

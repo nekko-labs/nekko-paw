@@ -97,6 +97,17 @@ const api: NekkoApi = {
   acceptChange: (sessionId, path) => inv(IpcChannels.changeAccept, sessionId, path),
   acceptAllChanges: (sessionId) => inv(IpcChannels.changeAcceptAll, sessionId),
 
+  listComments: (path) => inv(IpcChannels.commentsList, path),
+  addComment: (path, line, lineText, comment) => inv(IpcChannels.commentAdd, path, line, lineText, comment),
+  resolveComment: (path, id) => inv(IpcChannels.commentResolve, path, id),
+
+  getDesignBoard: (workspaceId) => inv(IpcChannels.designGet, workspaceId),
+  addDesignPage: (workspaceId, label, url) => inv(IpcChannels.designAddPage, workspaceId, label, url),
+  updateDesignPage: (workspaceId, pageId, patch) => inv(IpcChannels.designUpdatePage, workspaceId, pageId, patch),
+  removeDesignPage: (workspaceId, pageId) => inv(IpcChannels.designRemovePage, workspaceId, pageId),
+  addDesignNote: (workspaceId, pageId, text) => inv(IpcChannels.designAddNote, workspaceId, pageId, text),
+  resolveDesignNote: (workspaceId, pageId, noteId) => inv(IpcChannels.designResolveNote, workspaceId, pageId, noteId),
+
   listConnectors: () => inv(IpcChannels.connectorsList),
   connectConnector: (kind: ConnectorKind, token, settings) => inv(IpcChannels.connectorConnect, kind, token, settings),
   disconnectConnector: (kind: ConnectorKind) => inv(IpcChannels.connectorDisconnect, kind),

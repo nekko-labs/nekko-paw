@@ -244,6 +244,17 @@ function makeWebClient(): NekkoApi {
     acceptChange: (sessionId, path) => call(IpcChannels.changeAccept, sessionId, path),
     acceptAllChanges: (sessionId) => call(IpcChannels.changeAcceptAll, sessionId),
 
+    listComments: (path) => call(IpcChannels.commentsList, path),
+    addComment: (path, line, lineText, comment) => call(IpcChannels.commentAdd, path, line, lineText, comment),
+    resolveComment: (path, id) => call(IpcChannels.commentResolve, path, id),
+
+    getDesignBoard: (workspaceId) => call(IpcChannels.designGet, workspaceId),
+    addDesignPage: (workspaceId, label, url) => call(IpcChannels.designAddPage, workspaceId, label, url),
+    updateDesignPage: (workspaceId, pageId, patch) => call(IpcChannels.designUpdatePage, workspaceId, pageId, patch),
+    removeDesignPage: (workspaceId, pageId) => call(IpcChannels.designRemovePage, workspaceId, pageId),
+    addDesignNote: (workspaceId, pageId, text) => call(IpcChannels.designAddNote, workspaceId, pageId, text),
+    resolveDesignNote: (workspaceId, pageId, noteId) => call(IpcChannels.designResolveNote, workspaceId, pageId, noteId),
+
     listConnectors: () => call(IpcChannels.connectorsList),
     connectConnector: (kind, t, settings) => call(IpcChannels.connectorConnect, kind, t, settings),
     disconnectConnector: (kind) => call(IpcChannels.connectorDisconnect, kind),

@@ -26,3 +26,21 @@ export interface FileChange {
   /** Content on disk now. */
   current: string;
 }
+
+/**
+ * An inline comment left on a line of a file in the editor. The agent picks it
+ * up when the user chooses "Add to prompt" or "Run now"; it persists as a gutter
+ * marker until resolved.
+ */
+export interface LineComment {
+  id: string;
+  /** Absolute file path the comment is anchored to. */
+  path: string;
+  /** 1-based line number. */
+  line: number;
+  /** The line's text when the comment was made (context for the agent). */
+  lineText: string;
+  /** The user's comment. */
+  comment: string;
+  createdAt: number;
+}
