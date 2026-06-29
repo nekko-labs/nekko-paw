@@ -67,7 +67,10 @@ export function CommandCenterView() {
     return m;
   }, [sessions]);
 
-  const recentSession = sessions.find((s) => !s.parentSessionId);
+  // Chats the user started directly — excludes sub-agents and task-driven chats
+  // (those live in the swarm tree and the Tasks board respectively).
+  const topLevel = useMemo(() => sessions.filter((s) => !s.parentSessionId && !s.taskId), [sessions]);
+  const recentSession = topLevel[0];
   const recentWorkspace = settings?.workspaces?.[0];
   const todayKey = new Date().toISOString().slice(0, 10);
   const todayTokens = usage?.daily.find((d) => d.date === todayKey);
@@ -76,22 +79,21 @@ export function CommandCenterView() {
   // The prominent board: anything running, then anything touched recently. Top-
   // level sessions only (sub-agents are shown nested on their parent's card).
   const board = useMemo(() => {
-    const top = sessions.filter((s) => !s.parentSessionId);
-    return top
+    return topLevel
       .map((s) => ({ s, isRunning: running.has(s.id) || (childrenOf.get(s.id) ?? []).some((k) => running.has(k.id)) }))
       .filter(({ s, isRunning }) => isRunning || now - s.updatedAt < 60 * MIN)
       .sort((a, b) => (Number(b.isRunning) - Number(a.isRunning)) || b.s.updatedAt - a.s.updatedAt)
       .slice(0, 8);
-  }, [sessions, running, childrenOf, now]);
+  }, [topLevel, running, childrenOf, now]);
 
   const openChat = (id: string) => { openChatPane(id); setView('chat'); };
   const openTerminal = (id: string) => { openTerminalPane(id); setView('chat'); };
 
   const lanes = useMemo(() => {
     const m: Record<Lane, Session[]> = { active: [], recent: [], idle: [] };
-    for (const s of sessions.filter((x) => !x.parentSessionId)) m[laneOf(s, now)].push(s);
+    for (const s of topLevel) m[laneOf(s, now)].push(s);
     return m;
-  }, [sessions, now]);
+  }, [topLevel, now]);
 
   const totalCost = usage?.totalCost ?? 0;
   const liveTerminals = terminals.filter((t) => t.running).length;
@@ -750,10 +752,15 @@ function TasksDashboard({ sessions, running, onOpen }: { sessions: Session[]; ru
             return (
               <div key={t.id} className="card p-4">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex min-w-0 items-center gap-2">
+                  <button
+                    className="flex min-w-0 items-center gap-2 text-left"
+                    onClick={() => t.lastSessionId && onOpen(t.lastSessionId)}
+                    disabled={!t.lastSessionId}
+                    title="Open this task's chat"
+                  >
                     <span className="text-base">{meta.icon}</span>
-                    <span className="truncate text-[14px] font-semibold">{t.title}</span>
-                  </div>
+                    <span className="truncate text-[14px] font-semibold hover:text-accent">{t.title}</span>
+                  </button>
                   <span className="chip !text-white shrink-0" style={{ background: TASK_STATUS_COLOR[t.status] }}>
                     {live ? <span className="mr-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-white align-middle" /> : null}
                     {live ? 'working' : t.status}

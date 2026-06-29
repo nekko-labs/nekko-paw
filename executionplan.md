@@ -183,6 +183,7 @@
 - [x] Split the old "Background tasks & agents" board → **Services & model servers** (providers/MCP/relay) + a new **Tasks & scheduled work** section
 - [x] Host scheduler `tasks.ts` (+ `tasks.json`): scheduled / recurring / background tasks fired through the agent loop, one reused session per task; `tasks:list/create/update/delete/runNow` IPC + `tasksUpdated` event
 - [x] Task cards: cadence, status, run count, last result; Run-now / Pause-Resume / Open-chat / Delete; live updates
+- [x] **Every task links to a chat** — `createTask` creates a tagged chat session (`session.taskId`) up front so the card always opens it (title + "Open chat →"), even before the task fires; firing reuses it. Task-driven chats are kept out of the Active-agent-work board, All-chats lanes, and the workbench sidebar; deleting a task drops its chat if still empty.
 
 ### Automate menu + skills
 - [x] **⚡ Automate** button in the chat header → `ScheduleTaskModal` (scheduled / recurring / background; keep-alive forever or until a condition), pre-filled with the chat's project/model/draft

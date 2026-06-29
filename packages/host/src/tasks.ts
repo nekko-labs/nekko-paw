@@ -5,7 +5,7 @@ import type { AgentEvent, AutomationTask, NewTask } from '@open-paw/shared';
 import { TASK_DONE_TOKEN } from '@open-paw/shared';
 import { dataDir } from './store.js';
 import { getSettings } from './store.js';
-import { getSession, saveSession, createSession } from './sessions.js';
+import { getSession, saveSession, createSession, deleteSession } from './sessions.js';
 import { sendChat } from './chat.js';
 
 /**
@@ -59,9 +59,22 @@ export function listTasks(): AutomationTask[] {
 export function createTask(input: NewTask): AutomationTask[] {
   const tasks = load();
   const now = Date.now();
+  const title = input.title.trim() || 'Untitled task';
+  const id = randomUUID();
+  // Give every task its own chat session up front so the dashboard can always
+  // open it — even before the task has fired. Firing reuses this session.
+  const settings = getSettings();
+  const providerId = input.providerId ?? settings.defaultProviderId;
+  const modelId = input.modelId ?? settings.defaultModelId;
+  const session = createSession(input.workspaceId);
+  session.title = title;
+  session.taskId = id;
+  if (providerId) session.providerId = providerId;
+  if (modelId) session.modelId = modelId;
+  saveSession(session);
   const task: AutomationTask = {
-    id: randomUUID(),
-    title: input.title.trim() || 'Untitled task',
+    id,
+    title,
     kind: input.kind,
     prompt: input.prompt,
     workspaceId: input.workspaceId,
@@ -74,6 +87,7 @@ export function createTask(input: NewTask): AutomationTask[] {
     status: 'active',
     createdAt: now,
     runCount: 0,
+    lastSessionId: session.id,
     // When the first fire happens: scheduled → at runAt; otherwise asap.
     nextRunAt: input.kind === 'scheduled' ? input.runAt ?? now : now,
   };
@@ -95,7 +109,14 @@ export function updateTask(id: string, patch: Partial<AutomationTask>): Automati
 }
 
 export function deleteTask(id: string): AutomationTask[] {
-  save(load().filter((x) => x.id !== id));
+  const tasks = load();
+  const t = tasks.find((x) => x.id === id);
+  // Drop the task's chat only if it never produced anything (empty orphan).
+  if (t?.lastSessionId) {
+    const s = getSession(t.lastSessionId);
+    if (s && s.messages.length === 0) deleteSession(s.id);
+  }
+  save(tasks.filter((x) => x.id !== id));
   return listTasks();
 }
 
@@ -125,6 +146,7 @@ async function fireTask(id: string): Promise<void> {
   if (!sid || !getSession(sid)) {
     const s = createSession(task.workspaceId);
     s.title = task.title;
+    s.taskId = task.id;
     s.providerId = providerId;
     s.modelId = modelId;
     saveSession(s);

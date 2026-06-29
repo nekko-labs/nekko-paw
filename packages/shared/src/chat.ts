@@ -51,6 +51,9 @@ export interface Session {
    * final answer back to the parent's `spawn_agent` tool call.
    */
   parentSessionId?: string;
+  /** When set, this chat is driven by an automation task (shown in the Tasks
+   *  board, kept out of the regular chat boards/lanes). */
+  taskId?: string;
   providerId?: string;
   modelId?: string;
   messages: ChatMessage[];

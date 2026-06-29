@@ -169,7 +169,7 @@ export function WorkbenchView() {
   ];
   const topChats = (key: string) =>
     sessions
-      .filter((s) => !s.parentSessionId && (key === '__none' ? !s.workspaceId : s.workspaceId === key))
+      .filter((s) => !s.parentSessionId && !s.taskId && (key === '__none' ? !s.workspaceId : s.workspaceId === key))
       .sort(bySidebarOrder<Session>((s) => -s.updatedAt));
   const bucketTerminals = (key: string) =>
     terminals
